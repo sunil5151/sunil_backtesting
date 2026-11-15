@@ -1,0 +1,1755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>intraday-engine</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1c2330; --muted: #5f6b7a; --line: #dfe3e8;
+    --green: #1a7f37; --green-bg: #e3f4e8; --amber: #8a5a00; --amber-bg: #fff3d1;
+    --red: #c5221f; --red-bg: #fde7e6; --blue: #1f5fbf; --grey-bg: #eceff3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151a; --card: #1b2028; --ink: #e6e9ee; --muted: #9aa5b4; --line: #2c333e;
+      --green: #56d37a; --green-bg: #15301e; --amber: #f0b849; --amber-bg: #3a2c0a;
+      --red: #ff7b72; --red-bg: #3d1614; --blue: #7db0ff; --grey-bg: #232a34;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 40px; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1180px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap;
+         align-items: center; gap: 10px 16px; }
+  .brand { font-weight: 700; letter-spacing: .2px; }
+  .brand small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .pill { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 13px;
+          text-transform: uppercase; letter-spacing: .5px; background: var(--grey-bg); color: var(--muted); }
+  .pill.live { background: var(--green-bg); color: var(--green); }
+  .pill.warming, .pill.view { background: var(--amber-bg); color: var(--amber); }
+  .pill.halted { background: var(--red-bg); color: var(--red); }
+  .clock { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .grow { flex: 1 1 auto; }
+  button { font: inherit; font-weight: 600; padding: 8px 18px; border-radius: 8px; cursor: pointer;
+           border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.start { background: var(--green); border-color: var(--green); color: #fff; }
+  button.stop { background: var(--red); border-color: var(--red); color: #fff; }
+  @media (prefers-color-scheme: dark) { button.start, button.stop { color: #111; } }
+  .auto { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+  .auto input[type=time] { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px;
+                           background: var(--card); color: var(--ink); }
+  .stateline { color: var(--muted); margin: 12px 0 0; }
+  .busy { color: var(--blue); font-weight: 600; }
+  .banner { margin-top: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid; }
+  .banner b { display: block; }
+  .banner.red { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+  .banner.amber { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+  .banner span { color: var(--ink); }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+          grid-column: span 12; min-width: 0; }
+  .c7 { grid-column: span 7; } .c5 { grid-column: span 5; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; }
+  @media (max-width: 860px) { .c7, .c5, .c4, .c6 { grid-column: span 12; } }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin: 0 0 10px;
+       display: flex; align-items: center; gap: 10px; }
+  h2 .grow { flex: 1; }
+  h2 button { padding: 5px 12px; font-size: 13px; text-transform: none; letter-spacing: 0; }
+  .later { opacity: .55; }
+  .later h2::after { content: attr(data-phase); margin-left: auto; font-size: 11px; padding: 2px 8px;
+                     border-radius: 999px; background: var(--grey-bg); letter-spacing: .3px; }
+  .later p { margin: 0; color: var(--muted); font-size: 14px; }
+  .meters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  @media (max-width: 560px) { .meters { grid-template-columns: repeat(2, 1fr); } }
+  .meter { background: var(--grey-bg); border-radius: 8px; padding: 8px 10px; }
+  .meter .k { font-size: 12px; color: var(--muted); }
+  .meter .v { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .meter .v.bad { color: var(--red); } .meter .v.warn { color: var(--amber); }
+  .meter .s { font-size: 12px; color: var(--muted); }
+  .check { display: grid; grid-template-columns: 64px 1fr; gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .chip { font-size: 11px; font-weight: 700; text-align: center; padding: 3px 0; border-radius: 6px; height: fit-content;
+          background: var(--grey-bg); color: var(--muted); letter-spacing: .4px; }
+  .chip.green { background: var(--green-bg); color: var(--green); }
+  .chip.amber { background: var(--amber-bg); color: var(--amber); }
+  .chip.red { background: var(--red-bg); color: var(--red); }
+  .check .name { font-weight: 600; }
+  .check .must { font-weight: 400; font-size: 12px; color: var(--muted); margin-left: 6px; }
+  .check .text { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+  .check .fix { font-size: 14px; overflow-wrap: anywhere; }
+  .check .fix::before { content: "Fix: "; font-weight: 700; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  a { color: var(--blue); }
+  .feed { max-height: 560px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  .feed li { display: grid; grid-template-columns: 74px 1fr; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line);
+             font-size: 14px; overflow-wrap: anywhere; }
+  .feed li:first-child { border-top: 0; }
+  .feed time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .feed .good { color: var(--green); } .feed .warn { color: var(--amber); } .feed .bad { color: var(--red); }
+  .phases { display: flex; flex-wrap: wrap; gap: 8px; }
+  .phase { flex: 1 1 180px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+  .phase b { display: block; }
+  .phase.done { border-color: var(--green); background: var(--green-bg); }
+  .phase.progress { border-color: var(--amber); background: var(--amber-bg); }
+  .phase .st { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .tbl th, .tbl td { text-align: left; padding: 5px 6px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .tbl th { color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; }
+  .tbl td.num, .tbl th.num { text-align: right; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+         background: var(--grey-bg); color: var(--muted); letter-spacing: .3px; }
+  .tag.good { background: var(--green-bg); color: var(--green); }
+  .tag.bad { background: var(--red-bg); color: var(--red); }
+  .tag.warn { background: var(--amber-bg); color: var(--amber); }
+  .inputs4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 12px; }
+  @media (max-width: 560px) { .inputs4 { grid-template-columns: repeat(2, 1fr); } }
+  .scrollbox { max-height: 280px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var(--blue); margin-top: 10px; }
+  button.mini { padding: 3px 9px; font-size: 12px; border-radius: 6px; }
+  .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50; display: none;
+              align-items: center; justify-content: center; padding: 16px; }
+  .backdrop.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; width: min(1040px, 100%);
+           max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+  .modal-h { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .modal-h b { font-size: 15px; }
+  .modal-b { padding: 14px 16px; overflow-y: auto; }
+  .kvgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .kv { background: var(--grey-bg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+  .kv small { display: block; color: var(--muted); font-size: 11px; }
+  .sigcard { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .filterbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  .filterbar input, .filterbar select { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+                                       background: var(--card); color: var(--ink); font-size: 13px; }
+  .connwrap summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+                      cursor: pointer; margin: 0; color: var(--ink); font-size: 14px; }
+  .connwrap summary::-webkit-details-marker { display: none; }
+  .statsbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .statpill { background: var(--grey-bg); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+  .statpill b { font-variant-numeric: tabular-nums; }
+  .minbox { background: var(--grey-bg); border-left: 3px solid var(--blue); border-radius: 6px;
+            padding: 8px 10px; font-size: 13px; margin: 8px 0; }
+  .failbox { background: var(--red-bg); border-left: 3px solid var(--red); border-radius: 6px;
+             padding: 8px 10px; font-size: 13px; margin: 8px 0; }
+  .failbox ul { margin: 4px 0 0 18px; padding: 0; }
+  .logrow { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; font-size: 13px; }
+  .sigcard.focus { border-color: var(--blue); box-shadow: 0 0 0 2px var(--blue); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 12px; }
+  .tab { padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--grey-bg); color: var(--muted); border: 1px solid transparent; cursor: pointer; }
+  .tab.active { background: var(--blue); color: #fff; }
+  .drybox { margin-top: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--blue); background: var(--card); }
+  .drybox.running { border-color: var(--amber); background: var(--amber-bg); }
+  .bkgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: 8px; margin: 10px 0; }
+  .bkitem { background: var(--grey-bg); border-radius: 8px; padding: 7px 10px; font-size: 12px; }
+  .bkbar { height: 5px; background: var(--line); border-radius: 999px; overflow: hidden; margin-top: 5px; }
+  .bkfill { height: 100%; background: var(--green); }
+  .codeedit { width: 100%; min-height: 250px; font: 12.5px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+              padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  .codepre { max-height: 220px; overflow: auto; font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+             padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); white-space: pre-wrap; margin: 6px 0; }
+  .formrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin: 8px 0; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .field input, .field select { font: inherit; font-size: 14px; padding: 6px 9px; border-radius: 6px;
+                                border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .chipbtn { padding: 4px 10px; font-size: 12px; border-radius: 999px; background: var(--grey-bg); border: 1px solid var(--line); color: var(--ink); cursor: pointer; }
+  .chipbtn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <span class="brand">intraday-engine<small>paper only</small></span>
+    <span id="state" class="pill">…</span>
+    <span id="clock" class="clock"></span>
+    <span class="grow"></span>
+    <label class="auto" title="Starts a session by itself at this time on weekdays. The engine must already be running.">
+      <input type="checkbox" id="autoOn"> Auto-start at
+      <input type="time" id="autoTime" step="60">
+    </label>
+    <button id="btnStart" class="start">START</button>
+    <button id="btnStop" class="stop">STOP</button>
+    <button id="btnDryrun" title="Choose Date & Time Window to simulate the strategy on historical 5m bars (no real orders)">Dry Run (Pick Date/Time)</button>
+    <button id="btnStrategy" title="Manage Strategy Socket: Plug, Unplug, Upload, Qualify & AI Verify">Strategy &amp; Socket</button>
+    <button id="btnS3" title="Open S3 Bucket folders and consolidated scan analysis">S3 Cloud Folder</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <p class="stateline"><span id="stateLine"></span> <span id="busy" class="busy"></span></p>
+  <div id="banners"></div>
+  <div id="dryrunBanner"></div>
+
+  <div class="grid">
+    <section class="card c7">
+      <h2>Live Visibility &amp; Cloud Sync <span class="grow"></span><span id="visTag" class="tag"></span></h2>
+      <div id="visMeters" class="meters"></div>
+      <div id="visMeta" class="hint"></div>
+    </section>
+
+    <section class="card c5">
+      <h2>
+        Activity (Latest 5)
+        <span class="grow"></span>
+        <button class="mini" id="btnAct10" title="Load last 10 activity logs from S3 Cloud">Last 10 (S3)</button>
+        <button class="mini" id="btnAct20" title="Load last 20 activity logs from S3 Cloud">Last 20 (S3)</button>
+        <button class="mini" id="btnAct50" title="Load last 50 activity logs from S3 Cloud">Last 50 (S3)</button>
+      </h2>
+      <ul id="feed" class="feed"></ul>
+    </section>
+
+    <section class="card connwrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 auto;min-width:260px">
+          <details id="connDetails">
+            <summary id="connSummary">
+              <span style="font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)">Connection</span>
+              <span id="connBadge" class="tag">…</span>
+              <span id="connLine" class="hint" style="margin:0">Checking…</span>
+              <span style="color:var(--blue);font-size:12px">▼ Details (11 checks)</span>
+            </summary>
+            <div style="margin-top:12px">
+              <div class="meters">
+                <div class="meter"><div class="k">Heartbeat age</div><div class="v" id="mHb">–</div><div class="s" id="mHbS"></div></div>
+                <div class="meter"><div class="k">API latency</div><div class="v" id="mLat">–</div><div class="s" id="mLatS"></div></div>
+                <div class="meter"><div class="k">Free RAM</div><div class="v" id="mRam">–</div><div class="s" id="mRamS"></div></div>
+                <div class="meter"><div class="k">Last tick age</div><div class="v" id="mTick">–</div><div class="s" id="mTickS"></div></div>
+              </div>
+              <div id="checkHead" class="hint"></div>
+              <div id="checks"></div>
+              <p class="hint">Orders and trades can also be seen in <a id="oaLink" href="#" target="_blank" rel="noopener">OpenAlgo</a>.</p>
+            </div>
+          </details>
+        </div>
+        <button class="mini" id="btnCheck">Run check</button>
+      </div>
+    </section>
+
+    <section class="card c6">
+      <h2>Market <span class="grow"></span><span id="mktTime" class="hint" style="margin:0;text-transform:none;letter-spacing:0"></span></h2>
+      <div id="regimeBox"></div>
+      <div id="sectorBox"></div>
+    </section>
+    <section class="card c6">
+      <h2>Scanner &amp; Universe <span class="grow"></span><span id="scanSide" class="tag"></span></h2>
+      <div id="scannerBox"></div>
+      <div id="universeEmpty" class="hint">Universe table loads when you press START.</div>
+      <details id="uniDet" style="display:none">
+        <summary id="uniSum"></summary>
+        <div class="scrollbox"><table class="tbl"><thead><tr><th>Symbol</th><th>Sector</th><th class="num">PDH</th><th class="num">PDL</th><th class="num">ATR%</th><th>Status</th><th>Dissect</th></tr></thead><tbody id="uniBody"></tbody></table></div>
+      </details>
+    </section>
+    <section class="card">
+      <h2>Signals <span class="grow"></span><span id="sigSum" class="tag"></span></h2>
+      <div id="sigStatsBar"></div>
+      <div id="sigBreakdown"></div>
+      <div id="sigFilterBar" class="filterbar" style="display:none"></div>
+      <div id="signalsBox"></div>
+    </section>
+    <section class="card c6">
+      <h2>Positions <span class="grow"></span><span id="posSum" class="tag"></span></h2>
+      <div id="positionsBox"></div>
+    </section>
+    <section class="card c6">
+      <h2>Today <span class="grow"></span><span id="todaySum" class="tag"></span></h2>
+      <div id="todayBox"></div>
+    </section>
+    <section class="card" id="reportSec">
+      <h2>Strategy Dry Run Report Card &amp; Bar Timeline <span class="grow"></span><span id="repTag" class="tag"></span></h2>
+      <div id="reportBox"><p class="hint">Click <b>Dry Run (Pick Date/Time)</b> at the top to simulate trades, R:R, P&amp;L, and get a plain-language Strategy Report Card.</p></div>
+    </section>
+
+    <section class="card">
+      <h2>Build status</h2>
+      <div id="phases" class="phases"></div>
+    </section>
+  </div>
+  <div id="dryrunModal" class="backdrop">
+    <div class="modal" style="width:min(620px, 100%)">
+      <div class="modal-h">
+        <b>Dry Run Simulator — Choose Date &amp; Time Window</b>
+        <span class="grow"></span>
+        <button class="mini" id="drClose">Close</button>
+      </div>
+      <div id="drBody" class="modal-b"></div>
+    </div>
+  </div>
+  <div id="s3Modal" class="backdrop">
+    <div class="modal">
+      <div class="modal-h">
+        <b id="s3Title">S3 Cloud Folder</b>
+        <span class="grow"></span>
+        <button class="mini" id="s3Refresh">Refresh S3</button>
+        <button class="mini" id="s3Close">Close</button>
+      </div>
+      <div id="s3Body" class="modal-b">Loading…</div>
+    </div>
+  </div>
+  <div id="stratModal" class="backdrop">
+    <div class="modal">
+      <div class="modal-h">
+        <b id="stratTitle">Strategy &amp; Socket</b>
+        <span class="grow"></span>
+        <button class="mini" id="stratClose">Close</button>
+      </div>
+      <div id="stratBody" class="modal-b"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const IST = "Asia/Kolkata";
+let S = null, fetchedAt = 0, note = "";
+let sigFilter = "ALL", sigQuery = "", reportTimelineOpen = false;
+let socketData = null, socketTab = "socket";
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function fill(node, children) { node.replaceChildren(...children); }
+function istDay(ms) { return new Date(ms).toLocaleDateString("en-CA", { timeZone: IST }); }
+
+async function load() {
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    if (r.status === 401) { location.reload(); return; }
+    S = await r.json(); fetchedAt = Date.now();
+    render();
+  } catch (e) { renderOffline(); }
+}
+
+async function postJson(path, body) {
+  const r = await fetch(path, { method: "POST", body: JSON.stringify(body || {}),
+    headers: { "Content-Type": "application/json", "X-Engine-UI": "1" } });
+  return await r.json();
+}
+
+async function act(path, body) {
+  note = "";
+  try {
+    const j = await postJson(path, body);
+    if (!j.ok) note = j.message;
+  } catch (e) { note = "The engine did not answer."; }
+  await load();
+}
+
+function renderOffline() {
+  S = null;
+  $("state").className = "pill halted"; $("state").textContent = "engine off";
+  $("stateLine").textContent = ""; $("busy").textContent = "";
+  const b = el("div", "banner red");
+  b.append(el("b", null, "The engine is not running, so this page is not updating."),
+           el("span", null, "Double-click start_engine.bat in the engine folder. This page reconnects by itself."));
+  fill($("banners"), [b]);
+  for (const id of ["btnStart", "btnStop", "btnCheck", "btnDryrun"]) $(id).disabled = true;
+}
+
+function render() {
+  const s = S, c = s.conn;
+  // top bar
+  const pill = $("state");
+  pill.textContent = s.state;
+  pill.className = "pill " + ({ "live": "live", "warming up": "warming", "view only": "view", "halted": "halted" }[s.state] || "");
+  $("stateLine").textContent = s.state_line + (s.session ? " Started " + s.session.started +
+      (s.session.source === "auto" ? " by auto-start." : ".") : "");
+  $("busy").textContent = s.busy ? s.busy + "…" : note;
+  $("btnStart").disabled = !!s.session || !!s.busy;
+  $("btnStop").disabled = !s.session;
+  $("btnCheck").disabled = !!s.busy;
+  const dr = s.dryrun || { enabled: false, can_run: false, running: false, summary: null };
+  $("btnDryrun").style.display = dr.enabled ? "" : "none";
+  $("btnDryrun").disabled = !dr.can_run;
+  const si = s.strategy_info || { name: s.strategy || "unplugged", socket_available: false, unplugged: true };
+  const qFail = si.qualification ? (si.qualification.failed_count || 0) : 0;
+  if (si.unplugged || !si.socket_available) {
+    $("btnStrategy").textContent = "Socket: EMPTY (Plug Strategy)";
+    $("btnStrategy").style.borderColor = "var(--red)";
+  } else if (qFail > 0) {
+    $("btnStrategy").textContent = `Strategy: ${si.name} · Socket: OK (${si.qualification.passed_count}/${si.qualification.total_count} Warn)`;
+    $("btnStrategy").style.borderColor = "var(--amber)";
+  } else {
+    $("btnStrategy").textContent = `Strategy: ${si.name} · Socket: OK`;
+    $("btnStrategy").style.borderColor = "var(--green)";
+  }
+  if (document.activeElement !== $("autoTime")) $("autoTime").value = s.auto.time;
+  $("autoOn").checked = s.auto.on;
+
+  // live visibility & cloud sync
+  const vis = s.visibility || { total_stocks: 0, kept_stocks: 0, dropped_stocks: 0, eligible_sectors: 0, live_prices_count: 0, cadence: {}, limits: {}, external_positions: [] };
+  const td0 = s.today || { trades_taken: 0, max_trades: 6, trades_left: 6, open_count: 0 };
+  const s3i = s.s3 || { configured: false, bucket: "", region: "", last_key: "", last_status: "" };
+  $("visTag").textContent = si.socket_available
+    ? (qFail > 0 ? `Strategy: ${si.name} (Warn ${si.qualification.passed_count}/${si.qualification.total_count})` : `Strategy: ${si.name} (Socket OK)`)
+    : "Strategy Socket EMPTY";
+  $("visTag").className = "tag " + (si.socket_available ? (qFail > 0 ? "warn" : "good") : "bad");
+  const vm = $("visMeters");
+  vm.innerHTML = "";
+  const addVM = (k, v, sub) => {
+    const d = el("div", "meter");
+    d.append(el("div", "k", k), el("div", "v", v), el("div", "s", sub));
+    vm.append(d);
+  };
+  addVM("Stocks Read", `${vis.kept_stocks} / ${vis.total_stocks}`, `${vis.eligible_sectors} sectors · ${vis.live_prices_count} live ticks`);
+  addVM("Check Speed", `${cfgText(vis.cadence.market_scan)}`, `Ticks: ${vis.cadence.ticks_exits || "1s"}`);
+  addVM("Trades Available", `${td0.trades_left} / ${td0.max_trades}`, `Open slots: ${(vis.limits.max_open_positions || 3) - td0.open_count}/${vis.limits.max_open_positions || 3} · Cap ₹${Number(vis.limits.notional_cap_rs || 83333).toLocaleString("en-IN")}`);
+  addVM("S3 Cloud Storage", s3i.configured ? "CONNECTED" : "LOCAL ONLY", s3i.configured ? `${s3i.bucket} (${s3i.region})` : "Set S3 keys in .env");
+  const extTxt = (vis.external_positions && vis.external_positions.length) ? ` · External OpenAlgo positions (ignored): ${vis.external_positions.join(", ")}` : "";
+  const s3Txt = s3i.last_key ? ` · Last archive: ${s3i.last_key} (${s3i.last_status})` : "";
+  $("visMeta").textContent = `Cadence: ${vis.cadence.heartbeat_reconcile || "30s"} heartbeat & reconcile · Risk/trade ₹${vis.limits.risk_per_trade_rs || 500} · Daily loss limit ₹${vis.limits.daily_loss_limit_rs || 1500}${extTxt}${s3Txt}`;
+
+  // banners
+  const bs = s.banners.map(b => {
+    const d = el("div", "banner " + b.level);
+    d.append(el("b", null, b.text), el("span", null, b.fix));
+    return d;
+  });
+  if (si.unplugged) {
+    const d = el("div", "banner amber");
+    d.append(el("b", null, "Strategy Socket is EMPTY (No strategy plugged in)."),
+             el("span", null, "Click 'Socket: EMPTY (Plug Strategy)' at top to plug in, switch, or upload a strategy."));
+    bs.push(d);
+  }
+  if (s.refusal) {
+    const d = el("div", "banner red");
+    d.append(el("b", null, s.refusal.text), el("span", null, s.refusal.fix));
+    bs.push(d);
+  }
+  fill($("banners"), bs);
+
+  // Dry run protocol / active summary banner
+  const drBan = $("dryrunBanner");
+  drBan.innerHTML = "";
+  if (dr.running) {
+    const box = el("div", "drybox running");
+    const req = dr.active_req || {};
+    box.append(
+      el("b", null, `DRY RUN IN PROGRESS — Date: ${req.day || "last session"} · Window: ${req.start_time || "09:15"}–${req.end_time || "15:15"}`),
+      el("div", "hint", `${s.busy || "Replaying historical 5m candles"} | Protocol: ZERO real orders sent. Do NOT press START while Dry Run is running.`),
+    );
+    drBan.append(box);
+  } else if (dr.summary && !s.session) {
+    const ds = dr.summary, rc = ds.report_card || {};
+    const box = el("div", "drybox");
+    const row = el("div", null);
+    row.style.display = "flex"; row.style.flexWrap = "wrap"; row.style.alignItems = "center"; row.style.gap = "8px 12px";
+    row.append(
+      el("span", "tag good", "DRY RUN LOADED"),
+      el("b", null, `${ds.day} (${ds.start_time || "09:15"}–${ds.end_time || "15:15"}) · Strategy: ${ds.strategy || si.name}`),
+      el("span", "hint", `${ds.bars} bars | ${ds.would_trade} pass / ${ds.rejected} rej | Trades: ${rc.trades_executed ?? 0} (${rc.wins ?? 0}W/${rc.losses ?? 0}L) | Net: ₹${Number(rc.net_pnl || 0).toFixed(0)} (${Number(rc.net_r || 0).toFixed(2)}R) | Avg R:R: ${rc.avg_rr_ratio ? "1:" + rc.avg_rr_ratio : "–"}`),
+    );
+    const sp = el("span", "grow");
+    const btnRe = el("button", "mini", "Pick Date / Re-run");
+    btnRe.onclick = openDryrunModal;
+    row.append(sp, btnRe);
+    box.append(row);
+    drBan.append(box);
+  }
+
+  // meters
+  const hb = $("mHb");
+  if (c.heartbeat_age_s == null) { hb.textContent = "–"; hb.className = "v"; $("mHbS").textContent = "no good heartbeat yet"; }
+  else {
+    hb.textContent = c.heartbeat_age_s + " s";
+    hb.className = "v" + (c.heartbeat_age_s > 2.5 * c.heartbeat_every_s ? " bad" : "");
+    $("mHbS").textContent = "checked every " + c.heartbeat_every_s + " s";
+  }
+  $("mLat").textContent = c.latency_ms == null ? "–" : c.latency_ms + " ms";
+  $("mLatS").textContent = c.latency_avg_ms == null ? "" : "average " + c.latency_avg_ms + " ms";
+  const ram = $("mRam");
+  ram.textContent = c.free_ram_mb == null ? "–" : c.free_ram_mb + " MB";
+  ram.className = "v" + (c.free_ram_mb != null && c.free_ram_mb < c.warn_free_mb ? " warn" : "");
+  $("mRamS").textContent = c.engine_mb == null ? "" : "engine " + c.engine_mb + " MB (target " + c.engine_target_mb + ")";
+  const tk = $("mTick");
+  if (c.last_tick_age_s == null) {
+    tk.textContent = "–"; tk.className = "v";
+    $("mTickS").textContent = c.stream_active ? "waiting for ticks" : "stream idle";
+  } else {
+    tk.textContent = c.last_tick_age_s + " s";
+    tk.className = "v" + (c.stream_stale ? " warn" : (c.last_tick_age_s > (c.stale_seconds || 5) ? " bad" : ""));
+    $("mTickS").textContent = c.stream_stale ? "polling fallback" : (c.stream_active ? "live stream" : "last session");
+  }
+  $("oaLink").href = c.openalgo_url;
+
+  // checks + compact connection bar
+  const ck = s.check, label = { green: "OK", amber: "WARN", red: "FAIL", running: "…", pending: "WAIT" };
+  const ckItems = ck.items || [];
+  const cntG = ckItems.filter(i => i.status === "green").length;
+  const cntA = ckItems.filter(i => i.status === "amber").length;
+  const cntR = ckItems.filter(i => i.status === "red").length;
+  const badge = $("connBadge");
+  if (ck.running) { badge.textContent = "CHECKING…"; badge.className = "tag warn"; }
+  else if (!ckItems.length) { badge.textContent = "NOT CHECKED"; badge.className = "tag"; }
+  else if (cntR > 0) { badge.textContent = `${cntR} FAIL · ${cntG} OK`; badge.className = "tag bad"; $("connDetails").open = true; }
+  else if (cntA > 0) { badge.textContent = `${cntG} OK · ${cntA} WARN`; badge.className = "tag warn"; }
+  else { badge.textContent = `${cntG}/${ckItems.length} ALL OK`; badge.className = "tag good"; }
+  const hbTxt = c.heartbeat_age_s == null ? "–" : `${c.heartbeat_age_s}s`;
+  const latTxt = c.latency_ms == null ? "–" : `${c.latency_ms}ms`;
+  const ramTxt = c.free_ram_mb == null ? "–" : `${c.free_ram_mb} MB (Engine ${c.engine_mb ?? "–"} MB)`;
+  const tkTxt = c.last_tick_age_s == null ? "stream idle" : `Tick ${c.last_tick_age_s}s`;
+  $("connLine").textContent = `Heartbeat ${hbTxt} · Latency ${latTxt} · Free RAM ${ramTxt} · ${tkTxt}`;
+
+  $("checkHead").textContent = ck.running ? "Check is running…"
+    : ck.ran_at ? "Last run: " + new Date(ck.ran_at * 1000).toLocaleString("en-GB", { timeZone: IST, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
+    : "The check has not run yet. Press Run check. It also runs by itself before every START.";
+  fill($("checks"), ckItems.map(i => {
+    const row = el("div", "check");
+    row.append(el("div", "chip " + i.status, label[i.status] || i.status));
+    const body = el("div");
+    const name = el("div", "name", i.n + ". " + i.name);
+    if (i.block) name.append(el("span", "must", "must pass for START"));
+    body.append(name);
+    if (i.text) body.append(el("div", "text", i.text));
+    if (i.fix) body.append(el("div", "fix", i.fix));
+    row.append(body);
+    return row;
+  }));
+
+  // activity (Top 5 only in main view)
+  const today = istDay(Date.now());
+  const top5 = (s.activity || []).slice(0, 5);
+  fill($("feed"), top5.length ? top5.map(a => {
+    const ms = a.ts * 1000, li = el("li");
+    let t = new Date(ms).toLocaleTimeString("en-GB", { timeZone: IST, hour12: false });
+    if (istDay(ms) !== today) t = new Date(ms).toLocaleDateString("en-GB", { timeZone: IST, day: "2-digit", month: "short" }) + " " + t.slice(0, 5);
+    li.append(el("time", null, t), el("span", a.level, a.text));
+    return li;
+  }) : [el("li", null, "Nothing yet.")]);
+
+  // build status
+  fill($("phases"), s.phases.map(p => {
+    const d = el("div", "phase " + (p.state === "done" ? "done" : p.state === "in progress" ? "progress" : ""));
+    d.append(el("b", null, "Phase " + p.n + ": " + p.name), el("span", "st", p.state + (p.date ? " · " + p.date : "")));
+    return d;
+  }));
+
+  // market & regime (Phase 2)
+  const mv = s.market_view || {}, rg = mv.regime;
+  $("mktTime").textContent = mv.bar_time ? (mv.day + " · " + mv.bar_time + (mv.nifty_pct != null ? " · NIFTY " + (mv.nifty_pct >= 0 ? "+" : "") + mv.nifty_pct + "%" : "")) : "";
+  if (!rg) {
+    fill($("regimeBox"), [el("p", "hint", "No 5-minute bar evaluated yet. Press START during market hours.")]);
+    fill($("sectorBox"), []);
+  } else {
+    const top = el("div", null);
+    const rCls = rg.active === "TREND_UP" ? "good" : (rg.active === "TREND_DOWN" ? "bad" : "warn");
+    top.append(el("span", "tag " + rCls, rg.active));
+    if (rg.pending_raw) top.append(" ", el("span", "hint", "pending " + rg.pending_raw + " (" + rg.pending_count + "/2)"));
+    else if (rg.raw && rg.raw !== rg.active) top.append(" ", el("span", "hint", "raw " + rg.raw));
+
+    const grid = el("div", "inputs4");
+    const addM = (k, v, sub) => {
+      const m = el("div", "meter");
+      m.append(el("div", "k", k), el("div", "v", v), el("div", "s", sub || ""));
+      grid.append(m);
+    };
+    addM("ADX(14)", rg.adx == null ? "–" : String(rg.adx), "choppy < 20");
+    addM("Session mean", rg.session_mean == null ? "–" : String(rg.session_mean), rg.nifty_close == null ? "" : "NIFTY " + rg.nifty_close);
+    addM("Crosses (12)", String(rg.crosses ?? "–"), "choppy >= 4");
+    addM("Breadth A/D", rg.breadth == null ? "–" : String(rg.breadth), rg.advancers != null ? rg.advancers + " up / " + rg.decliners + " dn" : "");
+    fill($("regimeBox"), [top, grid]);
+
+    const secs = mv.sectors || [];
+    if (!secs.length) {
+      fill($("sectorBox"), [el("p", "hint", "No eligible sectors yet.")]);
+    } else {
+      const tbl = el("table", "tbl");
+      tbl.innerHTML = "<thead><tr><th>#</th><th>Sector</th><th class='num'>Stocks</th><th class='num'>Ret %</th><th class='num'>RS %</th><th>Mark</th></tr></thead>";
+      const tb = el("tbody");
+      secs.forEach(x => {
+        const tr = el("tr");
+        const mCls = x.mark === "STRONG" ? "good" : (x.mark === "WEAK" ? "bad" : "");
+        tr.append(
+          el("td", null, String(x.rank)),
+          el("td", null, x.sector),
+          el("td", "num", String(x.members)),
+          el("td", "num", (x.return_pct >= 0 ? "+" : "") + x.return_pct.toFixed(2)),
+          el("td", "num", (x.rs_pct >= 0 ? "+" : "") + x.rs_pct.toFixed(2)),
+        );
+        const tdMark = el("td");
+        if (x.mark) tdMark.append(el("span", "tag " + mCls, x.mark));
+        tr.append(tdMark);
+        tb.append(tr);
+      });
+      tbl.append(tb);
+      fill($("sectorBox"), [tbl]);
+    }
+  }
+
+  // scanner & universe (Phase 2) + clickable [Why?] buttons
+  const sc = mv.scanner || { side: null, shortlist: [], armed: [] };
+  $("scanSide").textContent = sc.side ? sc.side : (rg ? "CHOPPY (no side)" : "–");
+  $("scanSide").className = "tag " + (sc.side === "LONG" ? "good" : (sc.side === "SHORT" ? "bad" : ""));
+  const sl = sc.shortlist || [];
+  if (!sl.length) {
+    fill($("scannerBox"), [el("p", "hint", rg ? (sc.side ? "No candidates within +/-0.5 ATR of breakout level." : "Regime is CHOPPY: scanner idle.") : "Shortlist appears after the first 5-minute bar.")]);
+  } else {
+    const tbl = el("table", "tbl");
+    tbl.innerHTML = "<thead><tr><th>Symbol</th><th>Sector</th><th class='num'>LTP</th><th class='num'>Level</th><th class='num'>Prox</th><th class='num'>Score</th><th>State</th><th>Why?</th></tr></thead>";
+    const tb = el("tbody");
+    sl.forEach(x => {
+      const tr = el("tr");
+      tr.append(
+        el("td", null, x.symbol),
+        el("td", null, x.sector),
+        el("td", "num", x.ltp.toFixed(2)),
+        el("td", "num", x.level.toFixed(2)),
+        el("td", "num", x.proximity.toFixed(2)),
+        el("td", "num", x.score.toFixed(2)),
+      );
+      const tdSt = el("td");
+      tdSt.append(el("span", "tag " + (x.armed ? "good" : ""), x.armed ? "ARMED" : "watch"));
+      const tdWhy = el("td");
+      const wb = el("button", "mini", "Why?");
+      wb.onclick = () => openStockWhyModal(x.symbol);
+      tdWhy.append(wb);
+      tr.append(tdSt, tdWhy);
+      tb.append(tr);
+    });
+    tbl.append(tb);
+    fill($("scannerBox"), [tbl]);
+  }
+
+  const uv = s.universe || { total: 0, rows: [] };
+  if (!uv.total) {
+    $("universeEmpty").style.display = "";
+    $("uniDet").style.display = "none";
+  } else {
+    $("universeEmpty").style.display = "none";
+    $("uniDet").style.display = "";
+    $("uniSum").textContent = `Universe: ${uv.kept} kept in ${uv.eligible_sectors} eligible sectors, ${uv.dropped} dropped (click to view all ${uv.total})`;
+    fill($("uniBody"), uv.rows.map(r => {
+      const tr = el("tr");
+      tr.append(
+        el("td", null, r.symbol),
+        el("td", null, r.sector),
+        el("td", "num", r.pdh != null ? r.pdh.toFixed(1) : "–"),
+        el("td", "num", r.pdl != null ? r.pdl.toFixed(1) : "–"),
+        el("td", "num", r.atr_pct != null ? r.atr_pct.toFixed(2) : "–"),
+      );
+      const tdS = el("td");
+      if (r.effective_kept) tdS.append(el("span", "tag good", "KEPT"));
+      else tdS.append(el("span", "tag bad", "DROP"), " ", el("span", "hint", r.effective_reason || ""));
+      const tdW = el("td");
+      const wb = el("button", "mini", "Why?");
+      wb.onclick = () => openStockWhyModal(r.symbol);
+      tdW.append(wb);
+      tr.append(tdS, tdW);
+      return tr;
+    }));
+  }
+
+  // signals (Phase 3) + Check Breakdown + Filter + R:R + Checks Viewer
+  const sigs = s.signals || [];
+  const sigSumObj = s.signals_summary || {};
+  const drSum = (s.dryrun && s.dryrun.summary) ? s.dryrun.summary : null;
+  if (drSum) {
+    $("sigSum").textContent = `Dry run ${drSum.day} (${drSum.start_time || "09:15"}–${drSum.end_time || "15:15"}): ${drSum.would_trade} would trade, ${drSum.rejected} rejected (${drSum.bars} bars)`;
+    $("sigSum").className = "tag " + (drSum.would_trade > 0 ? "good" : "");
+  } else if (sigs.length) {
+    const wt = sigs.filter(x => x.status === "would trade" || x.status === "would_trade").length;
+    const rej = sigs.length - wt;
+    $("sigSum").textContent = `${wt} would trade, ${rej} rejected`;
+    $("sigSum").className = "tag " + (wt > 0 ? "good" : "");
+  } else {
+    $("sigSum").textContent = "none yet";
+    $("sigSum").className = "tag";
+  }
+
+  const sbar = $("sigStatsBar");
+  sbar.innerHTML = "";
+  const sbk = $("sigBreakdown");
+  sbk.innerHTML = "";
+  const fbar = $("sigFilterBar");
+
+  if (sigs.length) {
+    const wrap = el("div", "statsbar");
+    const addPill = (lbl, val) => { const d = el("div", "statpill"); d.append(el("span", "hint", lbl + " "), el("b", null, val)); wrap.append(d); };
+    addPill("Generated:", `${sigSumObj.total ?? sigs.length} signals (${sigSumObj.would_trade ?? 0} pass / ${sigSumObj.rejected ?? sigs.length} rej across ${sigSumObj.distinct_bars ?? "–"} scans)`);
+    addPill("Morning (09:15–11:30):", `${sigSumObj.morning_0915_1130 ?? 0}`);
+    addPill("Midday (11:30–13:30):", `${sigSumObj.midday_1130_1330 ?? 0}`);
+    addPill("Afternoon (13:30–15:15):", `${sigSumObj.afternoon_1330_1530 ?? 0}`);
+    if ((sigSumObj.errors_count || 0) > 0) addPill("Code Errors:", `${sigSumObj.errors_count}`);
+    const minEl = el("div", "minbox");
+    minEl.textContent = "Minimum Condition to Enter: " + (sigSumObj.min_condition || "All strategy checks & risk gate must pass.");
+    sbar.append(wrap, minEl);
+
+    const bkList = sigSumObj.check_breakdown || [];
+    if (bkList.length) {
+      const bTitle = el("div", "hint", "Check-wise Funnel (across all generated signals — see exactly which check rejects trades):");
+      bTitle.style.margin = "8px 0 4px";
+      const grid = el("div", "bkgrid");
+      bkList.forEach(b => {
+        const card = el("div", "bkitem");
+        const top = el("div", null);
+        top.style.display = "flex"; top.style.justifyContent = "space-between"; top.style.gap = "6px";
+        top.append(el("b", null, `#${b.step} ${b.name}`), el("span", b.errors > 0 ? "bad" : (b.passed > 0 ? "good" : "hint"), `${b.passed}/${b.total} (${b.pass_pct}%)`));
+        const bar = el("div", "bkbar");
+        const fl = el("div", "bkfill");
+        fl.style.width = `${Math.min(100, Math.max(0, b.pass_pct || 0))}%`;
+        if (b.pass_pct === 0) fl.style.background = "var(--red)";
+        bar.append(fl);
+        card.append(top, bar);
+        grid.append(card);
+      });
+      sbk.append(bTitle, grid);
+    }
+
+    fbar.style.display = "";
+    const wtAll = sigs.filter(x => x.status === "would trade" || x.status === "would_trade").length;
+    const errAll = sigs.filter(x => !!(x.error || x.has_error)).length;
+    const rejAll = sigs.length - wtAll;
+    const activeFocused = document.activeElement && document.activeElement.id === "sigSearchInp";
+    if (!fbar._init) {
+      fbar._init = true;
+      fbar._btns = {};
+      const mkBtn = (key, label) => {
+        const b = el("button", "chipbtn", label);
+        b.onclick = () => { sigFilter = key; render(); };
+        fbar._btns[key] = b;
+        fbar.append(b);
+      };
+      mkBtn("ALL", "All");
+      mkBtn("PASS", "Passed");
+      mkBtn("REJ", "Rejected");
+      mkBtn("ERR", "Errors");
+      const inp = document.createElement("input");
+      inp.id = "sigSearchInp";
+      inp.placeholder = "Filter symbol…";
+      inp.oninput = () => { sigQuery = inp.value.trim().toUpperCase(); render(); };
+      fbar._inp = inp;
+      fbar.append(inp);
+    }
+    fbar._btns.ALL.textContent = `All (${sigs.length})`;
+    fbar._btns.PASS.textContent = `Passed (${wtAll})`;
+    fbar._btns.REJ.textContent = `Rejected (${rejAll})`;
+    fbar._btns.ERR.textContent = `Errors (${errAll})`;
+    for (const [k, b] of Object.entries(fbar._btns)) b.className = "chipbtn" + (sigFilter === k ? " active" : "");
+    if (!activeFocused && fbar._inp.value !== sigQuery) fbar._inp.value = sigQuery;
+  } else {
+    fbar.style.display = "none";
+  }
+
+  const filteredSigs = sigs.filter(x => {
+    const ok = x.status === "would trade" || x.status === "would_trade";
+    const isErr = !!(x.error || x.has_error);
+    if (sigFilter === "PASS" && !ok) return false;
+    if (sigFilter === "REJ" && ok) return false;
+    if (sigFilter === "ERR" && !isErr) return false;
+    if (sigQuery && !String(x.symbol || "").toUpperCase().includes(sigQuery)) return false;
+    return true;
+  });
+
+  if (!sigs.length) {
+    fill($("signalsBox"), [el("p", "hint", "No signals yet. Armed stocks are evaluated on each closed 5-minute bar, or click Dry Run (Pick Date/Time).")]);
+  } else if (!filteredSigs.length) {
+    fill($("signalsBox"), [el("p", "hint", "No signals match the selected filter.")]);
+  } else {
+    const box = el("div", "scrollbox");
+    const tbl = el("table", "tbl");
+    tbl.innerHTML = "<thead><tr><th>Signal ID</th><th>Bar</th><th>Ready</th><th>Symbol</th><th>Side</th><th class='num'>Qty</th><th class='num'>Entry</th><th class='num'>SL / Tgt &amp; R:R</th><th class='num'>RVOL / Vol</th><th>Verdict &amp; Exact Checks Result</th><th>Dissect</th></tr></thead>";
+    const tb = el("tbody");
+    filteredSigs.forEach(x => {
+      const tr = el("tr");
+      const ok = x.status === "would trade" || x.status === "would_trade";
+      const isErr = !!(x.error || x.has_error);
+      const fmtNum = v => (v != null ? Number(v).toFixed(2) : "–");
+      const rv = (x.rvol != null ? x.rvol.toFixed(2) + "x" : "–") + " / " + (x.slot_mult != null ? x.slot_mult.toFixed(2) + "x" : "–");
+      const tdId = el("td");
+      tdId.append(el("b", null, x.signal_no || "–"));
+      if (x.signal_id || x.duration_ms != null) {
+        const sub = el("div", "hint", `${x.duration_ms != null ? x.duration_ms + "ms" : ""}`);
+        sub.style.margin = "0";
+        if (x.signal_id) sub.title = x.signal_id;
+        tdId.append(sub);
+      }
+      const tdSlTgt = el("td", "num");
+      tdSlTgt.append(document.createTextNode(`${fmtNum(x.stop_loss)} / ${fmtNum(x.target)}`));
+      if (x.rr_ratio != null || x.risk_rs != null) {
+        const rrLine = el("div", "hint",
+          (x.rr_ratio != null ? `R:R 1:${Number(x.rr_ratio).toFixed(2)}` : "") +
+          (x.risk_rs != null ? ` · Risk ₹${Math.round(x.risk_rs)}` : "") +
+          (x.reward_rs != null ? ` → ₹${Math.round(x.reward_rs)}` : "")
+        );
+        rrLine.style.margin = "0";
+        tdSlTgt.append(rrLine);
+      }
+      tr.append(
+        tdId,
+        el("td", null, x.bar_time || "–"),
+        el("td", null, x.ready_time || "–"),
+        el("td", null, x.symbol + (x.mode === "dryrun" ? " (dry)" : "")),
+        el("td", null, x.side || "–"),
+        el("td", "num", x.qty != null ? String(x.qty) : "–"),
+        el("td", "num", fmtNum(x.entry_price)),
+        tdSlTgt,
+        el("td", "num", rv),
+      );
+      const tdV = el("td");
+      const scoreTxt = (x.passed_checks != null && x.total_checks) ? ` (${x.passed_checks}/${x.total_checks})` : "";
+      if (isErr) {
+        tdV.append(el("span", "tag bad", "CODE ERROR" + scoreTxt));
+      } else {
+        tdV.append(el("span", "tag " + (ok ? "good" : "bad"), (ok ? "WOULD TRADE" : "REJECTED") + scoreTxt));
+      }
+      if (x.error) {
+        const errDiv = el("div", "bad", "Error: " + x.error);
+        errDiv.style.fontSize = "12px"; errDiv.style.marginTop = "2px";
+        tdV.append(errDiv);
+      }
+      if (x.failed_reasons && x.failed_reasons.length) {
+        x.failed_reasons.forEach(fr => {
+          const line = el("div", "hint", "• " + fr);
+          line.style.margin = "2px 0 0";
+          tdV.append(line);
+        });
+      } else if (x.reason) {
+        tdV.append(" ", el("span", "hint", x.reason));
+      }
+      tr.append(tdV);
+      const tdAct = el("td");
+      const btnChk = el("button", "mini", `Checks${scoreTxt}`);
+      btnChk.onclick = () => openSignalChecksModal(x);
+      tdAct.append(btnChk);
+      if (x.scan_file) {
+        const b = el("button", "mini", "Scan (S3)");
+        b.style.marginLeft = "4px";
+        b.onclick = () => openS3Scan(x.day, x.scan_file, x.signal_no);
+        tdAct.append(b);
+      }
+      tr.append(tdAct);
+      tb.append(tr);
+    });
+    tbl.append(tb);
+    box.append(tbl);
+    fill($("signalsBox"), [box]);
+  }
+
+  // positions & today (Phase 4 + Dry Run simulated trades)
+  const pos = s.positions || [];
+  const td = s.today || { trades_taken: 0, max_trades: 6, trades_left: 6, realized_pnl: 0, open_mtm: 0, costs: 0, net_pnl: 0, net_r: 0, loss_limit_rs: 1500, loss_limit_hit: false, closed: [], mode: "live" };
+  const isDryView = td.mode === "dryrun";
+  const rec = s.reconcile || { mismatches: [] };
+  $("posSum").textContent = pos.length + " open" + (isDryView ? " (DRY RUN)" : "") + (rec.mismatches.length ? " · MISMATCH" : "");
+  $("posSum").className = "tag " + (rec.mismatches.length ? "bad" : (pos.length ? "good" : ""));
+  if (!pos.length) {
+    fill($("positionsBox"), [el("p", "hint", isDryView ? "No open positions remaining at end of Dry Run window (check Today for closed trades)." : "No open paper positions.")]);
+  } else {
+    const tbl = el("table", "tbl");
+    tbl.innerHTML = "<thead><tr><th>Symbol</th><th>Side</th><th class='num'>Qty</th><th class='num'>Entry</th><th class='num'>Stop</th><th class='num'>Target</th><th class='num'>R:R</th><th class='num'>LTP</th><th class='num'>P&amp;L ₹</th><th class='num'>R</th><th>Why / Path</th></tr></thead>";
+    const tb = el("tbody");
+    pos.forEach(p => {
+      const tr = el("tr");
+      const slTxt = Number(p.stop_loss).toFixed(2) + (p.breakeven_moved ? " (BE)" : "");
+      const tdAna = el("td");
+      if (p.analysis) {
+        const ab = el("button", "mini", "Inspect");
+        ab.onclick = () => openTradeAnalysisModal(p);
+        tdAna.append(ab);
+      } else tdAna.append(el("span", "hint", "Live"));
+      tr.append(
+        el("td", null, p.symbol + (p.bar_time ? ` (${p.bar_time})` : "")),
+        el("td", null, p.side),
+        el("td", "num", String(p.qty)),
+        el("td", "num", Number(p.entry_price).toFixed(2)),
+        el("td", "num", slTxt),
+        el("td", "num", p.target != null ? Number(p.target).toFixed(2) : "–"),
+        el("td", "num", p.rr_ratio != null ? "1:" + Number(p.rr_ratio).toFixed(2) : "–"),
+        el("td", "num", p.ltp != null ? Number(p.ltp).toFixed(2) : "–"),
+        el("td", "num " + (p.pnl_rs >= 0 ? "good" : "bad"), (p.pnl_rs >= 0 ? "+" : "") + Number(p.pnl_rs).toFixed(2)),
+        el("td", "num " + (p.r_mult >= 0 ? "good" : "bad"), (p.r_mult >= 0 ? "+" : "") + Number(p.r_mult).toFixed(2) + "R"),
+        tdAna,
+      );
+      tb.append(tr);
+    });
+    tbl.append(tb);
+    fill($("positionsBox"), [tbl]);
+  }
+
+  $("todaySum").textContent = (isDryView ? `DRY RUN ${td.day || ""} · ` : "") + (td.loss_limit_hit ? "LOSS LIMIT HIT" : `${td.trades_left} trades left`);
+  $("todaySum").className = "tag " + (td.loss_limit_hit ? "bad" : (td.net_pnl > 0 ? "good" : ""));
+  const meters = el("div", "meters");
+  const mkM = (k, v, sub, cls) => {
+    const m = el("div", "meter");
+    m.append(el("div", "k", k), el("div", "v" + (cls ? " " + cls : ""), v), el("div", "s", sub));
+    return m;
+  };
+  meters.append(
+    mkM("Trades", `${td.trades_taken} / ${td.max_trades}`, `${td.trades_left} left`, ""),
+    mkM("Net P&L", `₹${td.net_pnl >= 0 ? "+" : ""}${td.net_pnl.toFixed(0)}`, `${td.net_r >= 0 ? "+" : ""}${td.net_r.toFixed(2)}R`, td.net_pnl < 0 ? "bad" : ""),
+    mkM("Realised / MTM", `₹${td.realized_pnl.toFixed(0)}`, `MTM ₹${td.open_mtm.toFixed(0)} · Cost ₹${td.costs.toFixed(0)}`, ""),
+    mkM("Loss limit", `₹${td.loss_limit_rs.toFixed(0)}`, td.loss_limit_hit ? "Entries stopped" : `₹${(td.loss_remaining_rs || 0).toFixed(0)} room`, td.loss_limit_hit ? "bad" : ""),
+  );
+  const todayParts = [meters];
+  if (rec.mismatches && rec.mismatches.length) {
+    todayParts.push(el("p", "hint", "Reconcile mismatch: " + rec.mismatches.join("; ")));
+  }
+  const cl = td.closed || [];
+  if (cl.length) {
+    const ctbl = el("table", "tbl");
+    ctbl.innerHTML = "<thead><tr><th>Symbol</th><th>Side</th><th class='num'>Qty</th><th>Time</th><th class='num'>In → Out</th><th class='num'>R:R</th><th>Exit</th><th class='num'>Net ₹</th><th class='num'>R</th><th>Why / Path</th></tr></thead>";
+    const ctb = el("tbody");
+    cl.forEach(c => {
+      const tr = el("tr");
+      const tdAn = el("td");
+      if (c.analysis) {
+        const ab = el("button", "mini", "Analyze");
+        ab.onclick = () => openTradeAnalysisModal(c);
+        tdAn.append(ab);
+      } else tdAn.append(el("span", "hint", "–"));
+      tr.append(
+        el("td", null, c.symbol),
+        el("td", null, c.side),
+        el("td", "num", String(c.qty)),
+        el("td", null, `${c.bar_time || "–"}→${c.exit_time || "–"}`),
+        el("td", "num", `${Number(c.entry_price).toFixed(1)}→${c.exit_price != null ? Number(c.exit_price).toFixed(1) : "–"}`),
+        el("td", "num", c.rr_ratio != null ? "1:" + Number(c.rr_ratio).toFixed(2) : "–"),
+        el("td", null, c.exit_reason + (c.stale_flag ? " (stale)" : "")),
+        el("td", "num " + (c.net_pnl >= 0 ? "good" : "bad"), (c.net_pnl >= 0 ? "+" : "") + Number(c.net_pnl).toFixed(2)),
+        el("td", "num " + (c.r_multiple >= 0 ? "good" : "bad"), (c.r_multiple >= 0 ? "+" : "") + Number(c.r_multiple).toFixed(2) + "R"),
+        tdAn,
+      );
+      ctb.append(tr);
+    });
+    ctbl.append(ctb);
+    todayParts.push(ctbl);
+  }
+  fill($("todayBox"), todayParts);
+
+  // Strategy Dry Run Report Card & Bar-by-Bar Timeline
+  const repBox = $("reportBox");
+  if (!drSum || !drSum.report_card) {
+    $("repTag").textContent = "Run Dry Run to generate";
+    $("repTag").className = "tag";
+    const h = el("p", "hint", "No dry run report card yet. ");
+    const b = el("button", "mini", "Open Dry Run Simulator");
+    b.onclick = openDryrunModal;
+    h.append(b);
+    fill(repBox, [h]);
+  } else {
+    const rc = drSum.report_card;
+    $("repTag").textContent = `${rc.day} (${rc.start_time}–${rc.end_time}) · ${rc.strategy_name}`;
+    $("repTag").className = "tag " + (rc.net_pnl > 0 ? "good" : (rc.net_pnl < 0 ? "bad" : ""));
+    const rMeters = el("div", "meters");
+    rMeters.append(
+      mkM("Signals Funnel", `${rc.signals_passed} / ${rc.signals_generated}`, `${rc.signals_rejected} rejected · ${rc.bars_replayed} bars (${rc.prefilter_kept}/${rc.universe_total} stocks)`, ""),
+      mkM("Trades Executed", `${rc.trades_executed}`, `${rc.closed_trades} closed (${rc.wins}W / ${rc.losses}L · ${rc.win_rate_pct}% win)`, ""),
+      mkM("Planned Avg R:R", rc.avg_rr_ratio ? `1:${rc.avg_rr_ratio}` : "–", `Open: ${rc.open_trades} | Net ${rc.net_r >= 0 ? "+" : ""}${rc.net_r}R`, ""),
+      mkM("Simulated Net P&L", `₹${rc.net_pnl >= 0 ? "+" : ""}${Number(rc.net_pnl).toFixed(2)}`, `Realised ₹${Number(rc.realized_pnl).toFixed(0)} · Cost ₹${Number(rc.costs).toFixed(0)}`, rc.net_pnl < 0 ? "bad" : ""),
+    );
+    const repParts = [rMeters];
+    const det = document.createElement("details");
+    det.open = reportTimelineOpen;
+    det.ontoggle = () => { reportTimelineOpen = det.open; };
+    const sum = document.createElement("summary");
+    const tl = drSum.timeline || [];
+    sum.textContent = `Bar-by-Bar Simulation Timeline (${tl.length} bars in window ${rc.start_time}–${rc.end_time})`;
+    det.append(sum);
+    if (tl.length) {
+      const scb = el("div", "scrollbox");
+      const ttbl = el("table", "tbl");
+      ttbl.innerHTML = "<thead><tr><th>Bar Close</th><th>Regime</th><th class='num'>NIFTY %</th><th class='num'>Armed</th><th class='num'>Signals</th><th class='num'>Passed</th><th class='num'>Open Pos</th><th class='num'>Closed</th></tr></thead>";
+      const ttb = el("tbody");
+      tl.forEach(t => {
+        const tr = el("tr");
+        tr.append(
+          el("td", null, t.bar_time),
+          el("td", null, t.regime),
+          el("td", "num", t.nifty_pct != null ? (t.nifty_pct >= 0 ? "+" : "") + t.nifty_pct.toFixed(2) + "%" : "–"),
+          el("td", "num", String(t.armed_count)),
+          el("td", "num", String(t.signals_count)),
+          el("td", "num", String(t.passed_count)),
+          el("td", "num", String(t.open_positions)),
+          el("td", "num", String(t.closed_trades)),
+        );
+        ttb.append(tr);
+      });
+      ttbl.append(ttb); scb.append(ttbl); det.append(scb);
+    }
+    repParts.push(det);
+    fill(repBox, repParts);
+  }
+  tick();
+}
+
+function tick() {
+  if (!S) { $("clock").textContent = ""; return; }
+  const ms = S.now_epoch * 1000 + (Date.now() - fetchedAt);
+  $("clock").textContent = new Date(ms).toLocaleString("en-GB", { timeZone: IST, weekday: "short", day: "2-digit",
+    month: "short", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) + " IST";
+}
+
+$("btnStart").onclick = () => act("/api/start");
+$("btnStop").onclick = () => act("/api/stop");
+$("btnCheck").onclick = () => act("/api/check");
+$("btnDryrun").onclick = openDryrunModal;
+$("btnStrategy").onclick = () => openStrategyModal("socket");
+$("btnS3").onclick = () => openS3Folder(null);
+$("btnAct10").onclick = () => openS3Activity(10);
+$("btnAct20").onclick = () => openS3Activity(20);
+$("btnAct50").onclick = () => openS3Activity(50);
+$("drClose").onclick = () => $("dryrunModal").classList.remove("open");
+$("s3Close").onclick = () => $("s3Modal").classList.remove("open");
+$("stratClose").onclick = () => $("stratModal").classList.remove("open");
+$("s3Refresh").onclick = () => openS3Folder(s3CurDay);
+const saveAuto = () => { if ($("autoTime").value) act("/api/auto", { on: $("autoOn").checked, time: $("autoTime").value }); };
+$("autoOn").onchange = saveAuto;
+$("autoTime").onchange = saveAuto;
+
+function cfgText(v) { return v || "Every 5m"; }
+
+function fallbackDryrunOptions() {
+  const days = [];
+  const seen = new Set();
+  const mvDay = (S && S.market_view && S.market_view.day) ? String(S.market_view.day) : "";
+  if (mvDay && /^\d{4}-\d{2}-\d{2}$/.test(mvDay)) {
+    seen.add(mvDay);
+    days.push(mvDay);
+  }
+  const nowMs = Date.now();
+  for (let i = 0; i < 25 && days.length < 10; i++) {
+    const dMs = nowMs - i * 86400000;
+    const dStr = istDay(dMs);
+    const wd = new Date(dStr + "T12:00:00+05:30").getDay();
+    if (wd >= 1 && wd <= 5 && !seen.has(dStr)) {
+      seen.add(dStr);
+      days.push(dStr);
+    }
+  }
+  days.sort().reverse();
+  return {
+    days: days,
+    default_day: days[0] || istDay(nowMs),
+    default_start_time: (S && S.times && S.times.open) || "09:15",
+    default_end_time: "15:30",
+    preset_times: ["09:15", "09:30", "10:00", "10:30", "11:00", "12:00", "13:00", "14:00"],
+  };
+}
+
+async function openDryrunModal() {
+  $("dryrunModal").classList.add("open");
+  const body = $("drBody");
+  body.innerHTML = "<p class='hint'>Loading available session dates…</p>";
+  let opt = fallbackDryrunOptions();
+  try {
+    const r = await fetch("/api/dryrun/options", { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      if (j && Array.isArray(j.days) && j.days.length) opt = j;
+    }
+  } catch (_) {}
+  try {
+    const si = (S && S.strategy_info) || {};
+    body.innerHTML = "";
+    const pbox = el("div", "minbox");
+    pbox.append(
+      el("b", null, "Dry Run Protocol (How it works): "),
+      el("span", null, "1) Pick a trading Date & Time window -> 2) Press Start Dry Run Replay (DO NOT press live START) -> 3) Engine replays historical 5m bars, opens simulated paper positions when signals pass, runs +1R breakeven / SL / Target / 14:55 Square-off exits, and prints Net P&L + R:R + What happened vs What should have happened. Zero broker orders.")
+    );
+    body.append(pbox);
+    if (si.unplugged) {
+      const wb = el("div", "failbox");
+      wb.append(el("b", null, "Warning: Strategy Socket is currently EMPTY! "), el("span", null, "Dry run will reject all signals unless you plug a strategy in Strategy & Socket first."));
+      body.append(wb);
+    } else {
+      body.append(el("p", "hint", `Active Strategy in Socket: ${si.name || "–"} (${si.file || "–"})`));
+    }
+
+    const row = el("div", "formrow");
+    const fDay = el("div", "field"); fDay.append(el("label", null, "Recent Trading Day"));
+    const sel = document.createElement("select");
+    (opt.days || []).forEach(d => { const o = document.createElement("option"); o.value = d; o.textContent = d; sel.append(o); });
+    const oCust = document.createElement("option"); oCust.value = "__custom__"; oCust.textContent = "Custom date…"; sel.append(oCust);
+    fDay.append(sel);
+
+    const fDate = el("div", "field"); fDate.append(el("label", null, "Selected Date"));
+    const inpDate = document.createElement("input"); inpDate.type = "date"; inpDate.value = opt.default_day || "";
+    sel.onchange = () => { if (sel.value !== "__custom__") inpDate.value = sel.value; };
+    inpDate.onchange = () => { if ((opt.days || []).includes(inpDate.value)) sel.value = inpDate.value; else sel.value = "__custom__"; };
+    fDate.append(inpDate);
+
+    const fSt = el("div", "field"); fSt.append(el("label", null, "Start Time (IST)"));
+    const inpSt = document.createElement("input");
+    inpSt.type = "time";
+    try { inpSt.step = "300"; } catch (_) {}
+    inpSt.value = opt.default_start_time || "09:15";
+    fSt.append(inpSt);
+
+    const fEn = el("div", "field"); fEn.append(el("label", null, "End Time (IST)"));
+    const inpEn = document.createElement("input");
+    inpEn.type = "time";
+    try { inpEn.step = "300"; } catch (_) {}
+    inpEn.value = opt.default_end_time || "15:30";
+    fEn.append(inpEn);
+
+    row.append(fDay, fDate, fSt, fEn);
+    body.append(row);
+
+    const chips = el("div", "filterbar");
+    chips.append(el("span", "hint", "Quick Start Time:"));
+    (opt.preset_times || ["09:15", "09:30", "10:00", "11:00", "13:00"]).forEach(t => {
+      const cb = el("button", "chipbtn", t);
+      cb.onclick = () => { inpSt.value = t; };
+      chips.append(cb);
+    });
+    body.append(chips);
+
+    const actRow = el("div", "formrow");
+    const runBtn = el("button", "start", "Start Dry Run Replay");
+    runBtn.onclick = async () => {
+      $("dryrunModal").classList.remove("open");
+      await act("/api/dryrun", { day: inpDate.value, start_time: inpSt.value, end_time: inpEn.value });
+    };
+    const cancelBtn = el("button", null, "Cancel");
+    cancelBtn.onclick = () => $("dryrunModal").classList.remove("open");
+    actRow.append(runBtn, cancelBtn);
+    body.append(actRow);
+  } catch (e) {
+    body.innerHTML = "<p class='hint'>Could not load dry run date options.</p>";
+  }
+}
+
+function openSignalChecksModal(sig) {
+  $("stratTitle").textContent = `Signal Checks Dissection: ${sig.signal_no || sig.symbol} (${sig.side || "–"})`;
+  const box = $("stratBody");
+  box.innerHTML = "";
+  const ok = sig.status === "would trade" || sig.status === "would_trade";
+  const kv = el("div", "kvgrid");
+  const addKV = (k, v) => { const d = el("div", "kv"); d.append(el("small", null, k), el("b", null, String(v))); kv.append(d); };
+  addKV("Verdict", `${String(sig.status || "").toUpperCase()} (${sig.passed_checks ?? "–"}/${sig.total_checks ?? "–"} Checks)`);
+  addKV("Date & Candle", `${sig.day || "–"} · ${sig.bar_time || "–"} (${sig.mode || "live"})`);
+  addKV("Entry / SL / Target", `₹${sig.entry_price ?? "–"} | SL ₹${sig.stop_loss ?? "–"} | Tgt ₹${sig.target ?? "–"}`);
+  addKV("Risk-to-Reward (R:R)", sig.rr_ratio != null ? `1:${Number(sig.rr_ratio).toFixed(2)} (Risk ₹${sig.risk_rs ?? "–"} → ₹${sig.reward_rs ?? "–"})` : "N/A");
+  box.append(kv);
+
+  const mbox = el("div", "minbox");
+  mbox.append(el("b", null, "Minimum Condition Required: "), el("span", null, sig.min_condition || "All checks must pass."));
+  box.append(mbox);
+
+  if (sig.error) {
+    const eb = el("div", "failbox");
+    eb.append(el("b", null, "Runtime / Code Crash Detected: "), el("span", null, sig.error));
+    box.append(eb);
+  }
+  const chks = sig.checks || [];
+  if (!chks.length) {
+    box.append(el("p", "hint", "Detailed check array unavailable for this signal. Reason: " + (sig.reason || "–")));
+  } else {
+    const ct = el("table", "tbl");
+    ct.innerHTML = "<thead><tr><th>#</th><th>Check Name</th><th>Status</th><th>Actual</th><th>Required</th><th>Why Failed / Code Note</th></tr></thead>";
+    const cb = el("tbody");
+    chks.forEach(ch => {
+      const tr = el("tr");
+      tr.append(el("td", null, String(ch.step)), el("td", null, ch.name));
+      const tdS = el("td"); tdS.append(el("span", "tag " + (ch.passed ? "good" : "bad"), ch.error ? "ERROR" : (ch.passed ? "PASS" : "FAIL")));
+      tr.append(tdS, el("td", null, ch.actual || "–"), el("td", null, ch.required || "–"), el("td", null, ch.passed ? "OK" : (ch.why_failed || "Condition not met")));
+      cb.append(tr);
+    });
+    ct.append(cb);
+    box.append(ct);
+  }
+  $("stratModal").classList.add("open");
+}
+
+function openTradeAnalysisModal(t) {
+  const ana = t.analysis || {};
+  $("stratTitle").textContent = `Trade Journey: ${t.symbol} (${t.side} x${t.qty}) — What Happened vs Should Have Happened`;
+  const box = $("stratBody");
+  box.innerHTML = "";
+  const kv = el("div", "kvgrid");
+  const addKV = (k, v) => { const d = el("div", "kv"); d.append(el("small", null, k), el("b", null, String(v))); kv.append(d); };
+  addKV("Status & Time", `${t.status || "–"} | In ${t.bar_time || "–"} → Out ${t.exit_time || "Open"} (${t.exit_reason || "OPEN"})`);
+  addKV("Planned R:R", `${t.rr_ratio ? "1:" + Number(t.rr_ratio).toFixed(2) : "–"} (Risk ₹${t.risk_rs ?? "–"} → Tgt ₹${t.reward_rs ?? "–"})`);
+  addKV("MFE / MAE Peak", `Peak +${ana.max_favorable_r ?? 0}R | Drawdown ${ana.max_adverse_r ?? 0}R`);
+  const pnlVal = t.status === "CLOSED" ? (t.net_pnl || 0) : (t.pnl_rs || 0);
+  const rVal = t.status === "CLOSED" ? (t.r_multiple || 0) : (t.r_mult || 0);
+  addKV("Result P&L", `₹${pnlVal >= 0 ? "+" : ""}${Number(pnlVal).toFixed(2)} (${rVal >= 0 ? "+" : ""}${Number(rVal).toFixed(2)}R) · Costs ₹${Number(t.costs || 0).toFixed(2)}`);
+  box.append(kv);
+
+  const b1 = el("div", "minbox");
+  b1.append(el("b", null, "Entry Plan & Parameters: "), el("div", null, ana.signal_summary || "–"));
+  const b2 = el("div", "minbox");
+  b2.append(el("b", null, "What Happened: "), el("div", null, ana.what_happened || "–"));
+  const b3 = el("div", pnlVal < 0 ? "failbox" : "minbox");
+  b3.append(el("b", null, "What Should Have Happened / Takeaway: "), el("div", null, ana.what_should_have_happened || "–"));
+  box.append(b1, b2, b3);
+  $("stratModal").classList.add("open");
+}
+
+async function openStrategyModal(tab) {
+  if (tab) socketTab = tab;
+  $("stratModal").classList.add("open");
+  $("stratTitle").textContent = "Strategy Socket Manager, Qualification & Upfront Rules";
+  const box = $("stratBody");
+  box.innerHTML = "<p class='hint'>Loading Strategy Socket information…</p>";
+  try {
+    const r = await fetch("/api/socket/info", { cache: "no-store" });
+    socketData = await r.json();
+    renderStrategyModal();
+  } catch (e) {
+    box.innerHTML = "<p class='hint'>Could not load /api/socket/info.</p>";
+  }
+}
+
+function renderStrategyModal() {
+  const box = $("stratBody");
+  box.innerHTML = "";
+  const d = socketData || {};
+  const q = d.qualification || {};
+  const ai = d.openrouter || {};
+  const ref = d.reference || {};
+
+  const tabs = el("div", "tabs");
+  const mkTab = (id, label) => {
+    const b = el("button", "tab" + (socketTab === id ? " active" : ""), label);
+    b.onclick = () => { if (id === "socket") { openStrategyModal("socket"); } else { socketTab = id; renderStrategyModal(); } };
+    tabs.append(b);
+  };
+  mkTab("socket", "1. Socket, Qualification & AI Check");
+  mkTab("upload", "2. Add / Upload / Create Strategy");
+  mkTab("guide", "3. Upfront Guide (Data, ctx & Test Code)");
+  box.append(tabs);
+
+  if (socketTab === "socket") {
+    const stBox = el("div", d.active_file ? (q.failed_count > 0 ? "drybox running" : "minbox") : "failbox");
+    stBox.append(
+      el("b", null, d.active_file ? `ACTIVE IN SOCKET: ${d.active_name} (${d.active_file})` : "SOCKET IS EMPTY (UNPLUGGED)"),
+      el("div", "hint", q.summary || "Plug any strategy from the dropdown or upload a new .py file in Tab 2.")
+    );
+    box.append(stBox);
+
+    const row = el("div", "formrow");
+    const fSel = el("div", "field"); fSel.style.flex = "1 1 240px";
+    fSel.append(el("label", null, "Available Strategies in strategies/"));
+    const sel = document.createElement("select");
+    (d.strategies || []).forEach(st => {
+      const o = document.createElement("option");
+      o.value = st.file;
+      o.textContent = `${st.file} (${st.name}${st.active ? " · ACTIVE" : ""})`;
+      if (st.file === d.active_file) o.selected = true;
+      sel.append(o);
+    });
+    fSel.append(sel);
+    const btnPlug = el("button", "start mini", "Plug In Selected");
+    btnPlug.onclick = async () => {
+      if (!sel.value) return;
+      await postJson("/api/socket/plug", { file: sel.value });
+      await openStrategyModal("socket");
+      await load();
+    };
+    const btnUnplug = el("button", "stop mini", "Unplug / Remove Active");
+    btnUnplug.disabled = !d.active_file;
+    btnUnplug.onclick = async () => {
+      await postJson("/api/socket/unplug", {});
+      await openStrategyModal("socket");
+      await load();
+    };
+    const btnQual = el("button", "mini", "Run Qualification Test");
+    btnQual.onclick = async () => {
+      const target = sel.value || d.active_file;
+      if (!target) return;
+      const res = await postJson("/api/socket/qualify", { file: target });
+      if (res.qualification) socketData.qualification = res.qualification;
+      renderStrategyModal();
+    };
+    const btnDel = el("button", "mini", "Delete Selected File");
+    const updDel = () => { btnDel.disabled = !sel.value || sel.value.endsWith("pdh_breakout.py"); };
+    updDel();
+    sel.onchange = updDel;
+    btnDel.onclick = async () => {
+      if (!sel.value) return;
+      await postJson("/api/socket/delete", { file: sel.value });
+      await openStrategyModal("socket");
+      await load();
+    };
+    row.append(fSel, btnPlug, btnUnplug, btnQual, btnDel);
+    box.append(row);
+
+    // Qualification Table
+    if (q.checks && q.checks.length) {
+      box.append(el("h2", null, `6-Point Qualification Suite (${q.status || "–"} — Soft Gate: Always Runnable)`));
+      const kv = el("div", "kvgrid");
+      const addKV = (k, v) => { const x = el("div", "kv"); x.append(el("small", null, k), el("b", null, String(v))); kv.append(x); };
+      addKV("Market Type", q.market_type || "Undeclared");
+      addKV("Choppy Market Treatment", q.choppy_treatment || "–");
+      addKV("Trending Market Treatment", q.trending_treatment || "–");
+      addKV("Test R:R Ratio", q.rr_ratio ? `1:${q.rr_ratio}` : "–");
+      box.append(kv);
+
+      const qt = el("table", "tbl");
+      qt.innerHTML = "<thead><tr><th>#</th><th>Qualification Test</th><th>Result</th><th>Actual</th><th>Requirement</th><th>Warning / Note</th></tr></thead>";
+      const qb = el("tbody");
+      q.checks.forEach(c => {
+        const tr = el("tr");
+        tr.append(el("td", null, String(c.step)), el("td", null, c.name));
+        const tdP = el("td"); tdP.append(el("span", "tag " + (c.passed ? "good" : "warn"), c.passed ? "PASS" : "WARN"));
+        tr.append(tdP, el("td", null, c.actual || "–"), el("td", null, c.required || "–"), el("td", null, c.passed ? "OK" : (c.why_failed || "Warning only (Soft Gate)")));
+        qb.append(tr);
+      });
+      qt.append(qb); box.append(qt);
+    }
+
+    // Detected Strategy Checks
+    const sc = q.strategy_checks || [];
+    if (sc.length) {
+      box.append(el("h2", null, `Transparent Entry Checks Inside Strategy (${sc.length} Strategy Checks + 1 Engine Risk Gate)`));
+      const stTbl = el("table", "tbl");
+      stTbl.innerHTML = "<thead><tr><th>#</th><th>Check / Gate</th><th>Condition Required</th><th>Code Expression</th></tr></thead>";
+      const stB = el("tbody");
+      sc.forEach(x => {
+        const tr = el("tr");
+        tr.append(el("td", null, String(x.step)), el("td", null, x.name || "–"), el("td", null, x.required || "–"), el("td", null, x.code || "–"));
+        stB.append(tr);
+      });
+      stTbl.append(stB); box.append(stTbl);
+    }
+
+    // OpenRouter AI Code Verification
+    box.append(el("h2", null, `OpenRouter AI Strategy Inspector (Default: ${ai.default_model || "GLM 5.3 Flash"})`));
+    const aiRow = el("div", "formrow");
+    const fMod = el("div", "field"); fMod.append(el("label", null, "OpenRouter Model (Default GLM 5.3 Flash)"));
+    const inpMod = document.createElement("input"); inpMod.value = ai.model || "GLM 5.3 Flash"; fMod.append(inpMod);
+    const fKey = el("div", "field"); fKey.style.flex = "1 1 220px";
+    fKey.append(el("label", null, ai.has_key ? "OpenRouter API Key (SAVED in .env — leave blank to keep)" : "OpenRouter API Key (paste key & verify)"));
+    const inpKey = document.createElement("input"); inpKey.type = "password"; inpKey.placeholder = ai.has_key ? "•••••••• (already configured)" : "sk-or-v1-...";
+    fKey.append(inpKey);
+    const btnAi = el("button", "start mini", "Verify with AI Agent");
+    const aiOut = el("div", null);
+    btnAi.onclick = async () => {
+      const target = sel.value || d.active_file;
+      if (!target) return;
+      btnAi.disabled = true; btnAi.textContent = "Verifying…";
+      const payload = { file: target, model: inpMod.value.trim() };
+      if (inpKey.value.trim()) payload.api_key = inpKey.value.trim();
+      const res = await postJson("/api/socket/openrouter", payload);
+      btnAi.disabled = false; btnAi.textContent = "Verify with AI Agent";
+      if (res.ok) {
+        socketData.ai_verification = res;
+        renderStrategyModal();
+      } else {
+        aiOut.innerHTML = "";
+        const eb = el("div", "failbox", res.message || "AI verification failed.");
+        aiOut.append(eb);
+      }
+    };
+    aiRow.append(fMod, fKey, btnAi);
+    box.append(aiRow, aiOut);
+    if (d.ai_verification && d.ai_verification.ok && d.ai_verification.ai) {
+      const av = d.ai_verification.ai;
+      const aCard = el("div", "minbox");
+      aCard.append(
+        el("b", null, `AI Audit (${d.ai_verification.model_display} · ${av.verdict || "DONE"} · ${d.ai_verification.checked_at}): `),
+        el("div", null, av.summary || ""),
+        el("div", "hint", `Choppy: ${av.choppy_treatment || "–"} | Trending: ${av.trending_treatment || "–"} | R:R: ${av.rr_assessment || "–"}`),
+      );
+      if (Array.isArray(av.extracted_checks) && av.extracted_checks.length) {
+        const ul = el("ul"); ul.style.margin = "6px 0 0 18px";
+        av.extracted_checks.forEach(ec => ul.append(el("li", null, `#${ec.step ?? "-"} ${ec.name || ""}: ${ec.required || ec.code || ""}`)));
+        aCard.append(ul);
+      }
+      box.append(aCard);
+    }
+  } else if (socketTab === "upload") {
+    const hint = el("div", "minbox", "Upload or paste a Python (.py) strategy below. Engine runs the 6-Point Qualification Suite immediately and shows warnings if anything is missing (Soft Gate: you can still run it).");
+    box.append(hint);
+    const row = el("div", "formrow");
+    const fName = el("div", "field"); fName.append(el("label", null, "Strategy Filename (.py)"));
+    const inpName = document.createElement("input"); inpName.placeholder = "my_breakout.py"; inpName.value = "my_custom_strategy.py";
+    fName.append(inpName);
+    const fFile = el("div", "field"); fFile.append(el("label", null, "Or Pick .py File From Disk"));
+    const inpFile = document.createElement("input"); inpFile.type = "file"; inpFile.accept = ".py";
+    fFile.append(inpFile);
+    const btnTpl = el("button", "mini", "Load Starter Template");
+    row.append(fName, fFile, btnTpl);
+    box.append(row);
+
+    const ta = document.createElement("textarea");
+    ta.className = "codeedit";
+    ta.placeholder = "# Paste your strategy Python code here, or click Load Starter Template…";
+    ta.value = ref.starter_template || "";
+    box.append(ta);
+
+    inpFile.onchange = () => {
+      const f = inpFile.files && inpFile.files[0];
+      if (!f) return;
+      inpName.value = f.name;
+      const rd = new FileReader();
+      rd.onload = () => { ta.value = String(rd.result || ""); };
+      rd.readAsText(f);
+    };
+    btnTpl.onclick = () => { ta.value = ref.starter_template || ""; };
+
+    const actRow = el("div", "formrow");
+    const chkLbl = el("label", "auto");
+    const chkPlug = document.createElement("input"); chkPlug.type = "checkbox"; chkPlug.checked = true;
+    chkLbl.append(chkPlug, document.createTextNode(" Plug into Socket immediately after upload"));
+    const btnUp = el("button", "start", "Upload & Run Qualification Checks");
+    const upOut = el("div", null);
+    btnUp.onclick = async () => {
+      btnUp.disabled = true;
+      const res = await postJson("/api/socket/upload", { filename: inpName.value, code: ta.value, auto_plug: chkPlug.checked });
+      btnUp.disabled = false;
+      upOut.innerHTML = "";
+      const mb = el("div", res.ok ? "minbox" : "failbox", res.message || "Done");
+      upOut.append(mb);
+      if (res.ok) {
+        const go = el("button", "mini start", "View Qualification Report in Socket Tab");
+        go.style.marginTop = "6px";
+        go.onclick = () => openStrategyModal("socket");
+        upOut.append(go);
+        await load();
+      }
+    };
+    actRow.append(chkLbl, btnUp);
+    box.append(actRow, upOut);
+  } else {
+    // Tab 3: Upfront Guide
+    const ds = ref.data_scope || {};
+    box.append(el("h2", null, "1. What Data the Engine Feeds Into Your Strategy"));
+    const dKv = el("div", "kvgrid");
+    const addDKV = (k, v) => { const d2 = el("div", "kv"); d2.append(el("small", null, k), el("span", null, v)); dKv.append(d2); };
+    addDKV("Stock Universe", ds.universe || "");
+    addDKV("Daily History Levels", ds.daily_history || "");
+    addDKV("5-Min Intraday Bars (bars)", ds.intraday_bars || "");
+    box.append(dKv);
+
+    box.append(el("h2", null, "2. All 18 Context Parameters Available on `ctx`"));
+    const pTbl = el("table", "tbl");
+    pTbl.innerHTML = "<thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>";
+    const pB = el("tbody");
+    (ref.parameters_available || []).forEach(p => {
+      const tr = el("tr"); tr.append(el("td", null, p.name), el("td", null, p.type), el("td", null, p.desc)); pB.append(tr);
+    });
+    pTbl.append(pB); box.append(pTbl);
+
+    box.append(el("h2", null, "3. Function Contract & Exact Qualification Test Code Used to Check Your Code"));
+    box.append(el("div", "minbox", `Required Entry Function: ${ref.function_contract || "evaluate_signal(symbol, bars, ctx) -> dict"}`));
+    const preQ = el("pre", "codepre", ref.qualification_code || "");
+    box.append(preQ);
+
+    const cpRow = el("div", "formrow");
+    const b1 = el("button", "mini", "Copy AI Builder Prompt (for ChatGPT / Claude / OpenRouter)");
+    b1.onclick = () => { navigator.clipboard.writeText(ref.ai_builder_prompt || ""); b1.textContent = "Copied AI Prompt!"; };
+    const b2 = el("button", "mini", "Copy Starter Strategy Template");
+    b2.onclick = () => { navigator.clipboard.writeText(ref.starter_template || ""); b2.textContent = "Copied Template!"; };
+    cpRow.append(b1, b2);
+    box.append(cpRow, el("pre", "codepre", ref.ai_builder_prompt || ""));
+  }
+}
+
+function openStockWhyModal(symbol) {
+  const s = S || {};
+  const sr = (s.stock_reasons || {})[symbol];
+  const mv = s.market_view || {};
+  const ur = ((s.universe || {}).rows || []).find(r => r.symbol === symbol);
+  $("stratTitle").textContent = `Stock Dissection: ${symbol} — Why Taken / Not Taken?`;
+  const box = $("stratBody");
+  box.innerHTML = "";
+  if (!sr && !ur) {
+    box.append(el("p", "hint", "No calculation data yet for this stock. Press START or run Dry run."));
+    $("stratModal").classList.add("open");
+    return;
+  }
+  const info = sr || {};
+  const ltpVal = info.ltp != null ? `₹${Number(info.ltp).toFixed(2)}` : "–";
+  const pdhVal = (info.pdh ?? (ur && ur.pdh)) != null ? `₹${Number(info.pdh ?? ur.pdh).toFixed(2)}` : "–";
+  const pdlVal = (info.pdl ?? (ur && ur.pdl)) != null ? `₹${Number(info.pdl ?? ur.pdl).toFixed(2)}` : "–";
+  const atrVal = (info.atr ?? (ur && ur.atr)) != null ? `₹${Number(info.atr ?? ur.atr).toFixed(2)}` : "–";
+  const kv = el("div", "kvgrid");
+  const addKV = (k, v) => { const d = el("div", "kv"); d.append(el("small", null, k), el("b", null, String(v))); kv.append(d); };
+  addKV("Stock & Sector", `${symbol} (${info.sector || (ur && ur.sector) || "–"} · ${info.sector_mark || "–"})`);
+  addKV("Current Stage", `${info.stage || "–"}`);
+  addKV("Latest Scan Time", `${mv.day || "–"} · ${mv.bar_time || "Pre-filter"}`);
+  addKV("LTP / PDH / PDL", `${ltpVal} | PDH ${pdhVal} | PDL ${pdlVal}`);
+  addKV("ATR & Liquidity", `ATR ${atrVal} (${(ur && ur.atr_pct != null) ? ur.atr_pct + "%" : "–"}) | 20d Val ₹${(ur && ur.avg_val_cr != null) ? ur.avg_val_cr + " Cr" : "–"}`);
+  box.append(kv);
+
+  const mbox = el("div", "minbox");
+  mbox.append(el("b", null, "Minimum Condition Required: "), el("span", null, info.min_condition || "All strategy filters & 8/8 checks must pass."));
+  const fbox = el("div", info.stage === "ARMED" && String(info.why_not_taken || "").startsWith("PASSED") ? "minbox" : "failbox");
+  fbox.append(el("b", null, "Exact Result & Reason: "), el("span", null, info.why_not_taken || info.detail || (ur && ur.effective_reason) || "Evaluated in latest candle."));
+  box.append(mbox, fbox);
+
+  // Check if there was a signal for this stock
+  const sigMatch = (s.signals || []).find(x => x.symbol === symbol);
+  if (sigMatch && sigMatch.scan_file) {
+    const btn = el("button", "mini start", `Open Full 72-Stock Candle Scan (${sigMatch.scan_file})`);
+    btn.style.marginTop = "10px";
+    btn.onclick = () => {
+      $("stratModal").classList.remove("open");
+      openS3Scan(sigMatch.day, sigMatch.scan_file, sigMatch.signal_no);
+    };
+    box.append(btn);
+  }
+  $("stratModal").classList.add("open");
+}
+
+async function openS3Activity(limit) {
+  $("s3Modal").classList.add("open");
+  $("s3Title").textContent = `S3 Cloud Activity Log (Last ${limit})`;
+  $("s3Body").innerHTML = "<p class='hint'>Fetching activity history from AWS S3…</p>";
+  try {
+    const mvDay = (S && S.market_view && S.market_view.day) ? S.market_view.day : "";
+    const url = `/api/s3/activity?limit=${limit}` + (mvDay ? `&day=${encodeURIComponent(mvDay)}` : "");
+    const r = await fetch(url);
+    const j = await r.json();
+    const body = $("s3Body"); body.innerHTML = "";
+    const kv = el("div", "kvgrid");
+    const mk = (k, v) => { const d = el("div", "kv"); d.append(el("small", null, k), el("b", null, String(v))); kv.append(d); };
+    mk("Folder Path", j.day ? `scans/${j.day}/ACTIVITY.json` : "ACTIVITY.json");
+    mk("Source", j.source === "s3" ? "AWS S3 Bucket (Live)" : "Local Engine Memory");
+    mk("Showing", `${(j.items || []).length} of ${j.total ?? 0} logged events`);
+    body.append(kv);
+    const ul = el("ul", "feed");
+    ul.style.maxHeight = "60vh";
+    const items = j.items || [];
+    if (!items.length) {
+      ul.append(el("li", null, "No activity logs stored yet."));
+    } else {
+      const today = istDay(Date.now());
+      items.forEach(a => {
+        const ms = a.ts * 1000, li = el("li");
+        let t = new Date(ms).toLocaleTimeString("en-GB", { timeZone: IST, hour12: false });
+        if (istDay(ms) !== today) t = new Date(ms).toLocaleDateString("en-GB", { timeZone: IST, day: "2-digit", month: "short" }) + " " + t.slice(0, 5);
+        li.append(el("time", null, t), el("span", a.level || "info", a.text));
+        ul.append(li);
+      });
+    }
+    body.append(ul);
+  } catch (e) {
+    $("s3Body").innerHTML = "<p class='hint'>Could not load S3 activity log.</p>";
+  }
+}
+
+let s3CurDay = null;
+async function openS3Folder(day) {
+  s3CurDay = day;
+  $("s3Modal").classList.add("open");
+  $("s3Title").textContent = "S3 Cloud Folder — Consolidated Candle Reports";
+  $("s3Body").innerHTML = "<p class='hint'>Fetching S3 bucket index…</p>";
+  try {
+    const r = await fetch("/api/s3/index" + (day ? "?day=" + encodeURIComponent(day) : ""));
+    const j = await r.json();
+    s3CurDay = j.day;
+    const body = $("s3Body");
+    body.innerHTML = "";
+    const top = el("div", "kvgrid");
+    const mk = (k, v) => { const d = el("div", "kv"); d.append(el("small", null, k), el("b", null, v)); top.append(d); };
+    mk("S3 Bucket", `${j.bucket || "Local"} (${j.region || ""})`);
+    mk("Folder Path", j.day ? `scans/${j.day}/` : "scans/");
+    mk("Source", j.source === "s3" ? "AWS S3 Bucket (Live)" : "Local Fallback Cache");
+    body.append(top);
+
+    const fbar = el("div", "filterbar");
+    fbar.append(el("span", "hint", "Date folder:"));
+    (j.days || []).forEach(d => {
+      const btn = el("button", "mini" + (d === j.day ? " start" : ""), d + "/");
+      btn.onclick = () => openS3Folder(d);
+      fbar.append(btn);
+    });
+    if (!(j.days || []).length) fbar.append(el("span", "hint", "No scans saved yet. Run Dry run or live session."));
+    body.append(fbar);
+
+    const scans = j.scans || [];
+    if (!scans.length) {
+      body.append(el("p", "hint", "No consolidated scan files in this date folder yet."));
+      return;
+    }
+    const tbl = el("table", "tbl");
+    tbl.innerHTML = "<thead><tr><th>File Name (Self-Describing)</th><th>Scan ID</th><th>Time</th><th class='num'>Speed</th><th>Regime</th><th class='num'>Kept</th><th class='num'>Armed</th><th>Signals Summary</th><th>Open</th></tr></thead>";
+    const tb = el("tbody");
+    scans.forEach(x => {
+      const tr = el("tr");
+      tr.append(
+        el("td", null, x.scan_file),
+        el("td", null, x.scan_id),
+        el("td", null, `${x.bar_time} (${x.mode})`),
+        el("td", "num", `${x.duration_ms} ms`),
+        el("td", null, x.regime || "–"),
+        el("td", "num", String(x.kept)),
+        el("td", "num", String(x.armed)),
+        el("td", null, (x.symbols && x.symbols.length) ? x.symbols.join(", ") : `${x.signals_passed} pass / ${x.signals_rejected} rej`),
+      );
+      const tdB = el("td");
+      const ob = el("button", "mini", "Open Single Page");
+      ob.onclick = () => openS3Scan(x.day, x.scan_file);
+      tdB.append(ob); tr.append(tdB); tb.append(tr);
+    });
+    tbl.append(tb); body.append(tbl);
+  } catch (e) {
+    $("s3Body").innerHTML = "<p class='hint'>Could not load S3 index.</p>";
+  }
+}
+
+async function openS3Scan(day, scanFile, focusSignalNo) {
+  s3CurDay = day;
+  $("s3Modal").classList.add("open");
+  $("s3Title").textContent = `S3 Scan Report: scans/${day}/${scanFile}`;
+  $("s3Body").innerHTML = "<p class='hint'>Fetching single-page scan report from S3…</p>";
+  try {
+    const r = await fetch(`/api/s3/scan?day=${encodeURIComponent(day)}&file=${encodeURIComponent(scanFile)}`);
+    const j = await r.json();
+    if (!j.ok || !j.scan) { $("s3Body").innerHTML = `<p class='hint'>${j.message || "Not found"}</p>`; return; }
+    const sc = j.scan;
+    const b = $("s3Body"); b.innerHTML = "";
+
+    const back = el("button", "mini", "← Back to Folder (" + day + "/)");
+    back.onclick = () => openS3Folder(day);
+    b.append(back);
+
+    const kv = el("div", "kvgrid");
+    kv.style.marginTop = "10px";
+    const mk = (k, v) => { const d = el("div", "kv"); d.append(el("small", null, k), el("b", null, String(v))); kv.append(d); };
+    mk("Scan File & ID", `${sc.scan_file} (${sc.scan_id})`);
+    mk("Candle & Speed", `${sc.bar_time} (checked ${sc.checked_at} · ${sc.duration_ms} ms · ${sc.mode})`);
+    mk("Source", j.source === "s3" ? "Fetched from AWS S3" : "Local cache");
+    const mc = sc.market_calculation || {};
+    mk("Market Calc", `${mc.regime} | NIFTY ${mc.nifty_pct}% | ADX ${mc.adx14} | Breadth ${mc.breadth} (${mc.advancers}/${mc.decliners})`);
+    const fc = sc.funnel_counts || {};
+    mk("72-Stock Funnel", `Kept ${fc.prefilter_kept} → Sector Drop ${fc.sector_filtered} → Far ${fc.far_from_level} → Shortlist ${fc.shortlisted} → Armed ${fc.armed}`);
+    mk("Strategy & Socket", `${(sc.strategy || {}).name} · Socket: ${(sc.strategy || {}).socket_available ? "OK" : "NOT AVAILABLE"}`);
+    b.append(kv);
+
+    // Part 1: Signals Section (with Score, Minimum Condition, Plain Failure Reasons & 8 Checks)
+    b.append(el("h2", null, "Part 1 — Signals Dissection (Minimum Condition + Exact Failure Reasons)"));
+    const sigs = sc.signals_section || [];
+    let focusEl = null;
+    if (!sigs.length) {
+      b.append(el("p", "hint", "No armed stocks reached signal evaluation in this candle."));
+    } else {
+      sigs.forEach(sg => {
+        const isFocus = focusSignalNo && (sg.signal_no === focusSignalNo || sg.signal_id === focusSignalNo);
+        const card = el("div", "sigcard" + (isFocus ? " focus" : ""));
+        if (isFocus) focusEl = card;
+        const ok = sg.status === "would trade";
+        const chks = sg.checks || [];
+        const pCnt = sg.passed_checks ?? chks.filter(c => c.passed).length;
+        const tCnt = sg.total_checks ?? chks.length;
+        const fCnt = sg.failed_checks ?? (tCnt - pCnt);
+
+        const hdr = el("div", null);
+        hdr.append(
+          el("b", null, `Signal ${sg.signal_no} — ${sg.symbol} (${sg.side || "–"}) `),
+          el("span", "tag " + (ok ? "good" : "bad"), ok ? `PASSED (${pCnt}/${tCnt}) / WOULD TRADE` : `REJECTED (${pCnt}/${tCnt} Pass · ${fCnt} Fail)`),
+          el("span", "hint", ` · ID: ${sg.signal_id || sg.signal_no} · Qty: ${sg.qty ?? "–"} | Entry: ${sg.entry_price ?? "–"} | SL: ${sg.stop_loss ?? "–"} | Tgt: ${sg.target ?? "–"}`)
+        );
+        card.append(hdr);
+
+        const minBox = el("div", "minbox");
+        minBox.append(el("b", null, "Minimum Condition to Enter: "), el("span", null, sg.min_condition || sc.min_condition_to_enter || "All 8 out of 8 mandatory checks MUST pass (100% required)."));
+        card.append(minBox);
+
+        const fReasons = (sg.failed_reasons && sg.failed_reasons.length)
+          ? sg.failed_reasons
+          : chks.filter(c => !c.passed).map(c => `#${c.step} ${c.name}: ${c.why_failed || (c.actual + " vs required " + c.required)}`);
+        if (!ok && fReasons.length) {
+          const fBox = el("div", "failbox");
+          fBox.append(el("b", null, `Exact ${fReasons.length} Failure Reason(s):`));
+          const ul = el("ul");
+          fReasons.forEach(fr => ul.append(el("li", null, fr)));
+          fBox.append(ul);
+          card.append(fBox);
+        }
+
+        if (chks.length) {
+          const ct = el("table", "tbl");
+          ct.innerHTML = "<thead><tr><th>#</th><th>Calculation Check</th><th>Status</th><th>Actual Value</th><th>Required Minimum</th><th>Why Failed / Note</th></tr></thead>";
+          const cb = el("tbody");
+          chks.forEach(ch => {
+            const tr = el("tr");
+            tr.append(el("td", null, String(ch.step)), el("td", null, ch.name));
+            const tdP = el("td"); tdP.append(el("span", "tag " + (ch.passed ? "good" : "bad"), ch.passed ? "PASS" : "FAIL"));
+            tr.append(tdP, el("td", null, ch.actual), el("td", null, ch.required), el("td", null, ch.passed ? "OK (Passed)" : (ch.why_failed || "Condition not met")));
+            cb.append(tr);
+          });
+          ct.append(cb); card.append(ct);
+        }
+        b.append(card);
+      });
+    }
+
+    // Part 2A: Immediate Top Priority Stocks
+    const allRows = sc.all_stocks_table || [];
+    const topRows = allRows.filter(r => r.priority_group === "TOP_PRIORITY" || ["ARMED", "SHORTLIST", "OUTSIDE_TOP5"].includes(r.stage));
+    b.append(el("h2", null, `Part 2A — Immediate Top Priority Stocks (${topRows.length})`));
+    if (!topRows.length) {
+      b.append(el("p", "hint", "No stocks were near breakout levels / shortlisted in this candle."));
+    } else {
+      const ptbl = el("table", "tbl");
+      ptbl.innerHTML = "<thead><tr><th>Symbol</th><th>Sector</th><th class='num'>LTP</th><th class='num'>PDH / PDL</th><th>Stage</th><th>Minimum Condition &amp; Exact Reason Not Taken</th></tr></thead>";
+      const ptb = el("tbody");
+      topRows.forEach(r => {
+        const tr = el("tr");
+        tr.append(
+          el("td", null, r.symbol),
+          el("td", null, `${r.sector} (${r.sector_mark})`),
+          el("td", "num", r.ltp != null ? r.ltp.toFixed(2) : "–"),
+          el("td", "num", `${r.pdh.toFixed(1)} / ${r.pdl.toFixed(1)}`),
+          el("td", null, r.stage),
+        );
+        const tdEx = el("td");
+        tdEx.append(
+          el("div", null, r.why_not_taken || r.detail || "–"),
+          el("div", "hint", "Min: " + (r.min_condition || "Sector aligned + <=0.5 ATR + Top-5 + 8/8 checks"))
+        );
+        tr.append(tdEx);
+        ptb.append(tr);
+      });
+      ptbl.append(ptb); b.append(ptbl);
+    }
+
+    // Part 2B: Step-by-Step 72-Stock Try Log
+    b.append(el("h2", null, `Part 2B — Step-by-Step ${allRows.length}-Stock Try Log (Simple Log Format)`));
+    const fbar = el("div", "filterbar");
+    const inp = el("input"); inp.placeholder = "Search symbol or sector…";
+    const sel = el("select");
+    sel.innerHTML = `<option value=''>All stocks (${allRows.length})</option><option value='TOP_PRIORITY'>Top Priority Only</option><option value='ARMED'>ARMED</option><option value='SHORTLIST'>SHORTLIST</option><option value='OUTSIDE_TOP5'>NEAR LEVEL</option><option value='FAR_FROM_LEVEL'>FAR FROM LEVEL</option><option value='SECTOR_FILTERED'>SECTOR FILTERED</option>`;
+    fbar.append(inp, sel); b.append(fbar);
+
+    const sbox = el("div", "scrollbox");
+    sbox.style.maxHeight = "340px";
+    sbox.style.padding = "6px 10px";
+    b.append(sbox);
+    const drawRows = () => {
+      const q = inp.value.trim().toUpperCase();
+      const st = sel.value;
+      const rows = allRows.filter(r => {
+        const stOk = !st || (st === "TOP_PRIORITY" ? (r.priority_group === "TOP_PRIORITY" || ["ARMED", "SHORTLIST", "OUTSIDE_TOP5"].includes(r.stage)) : r.stage === st);
+        const qOk = !q || r.symbol.includes(q) || r.sector.toUpperCase().includes(q);
+        return stOk && qOk;
+      });
+      fill(sbox, rows.map((r, idx) => {
+        const card = el("div", "logrow");
+        const order = r.try_order ?? (idx + 1);
+        const ltpS = r.ltp != null ? `₹${r.ltp.toFixed(2)}` : "–";
+        const top = el("div", null);
+        top.append(
+          el("b", null, `[${sc.bar_time}] #${order}/${allRows.length} Tried ${r.symbol} (${r.sector} · ${r.sector_mark}) `),
+          el("span", "tag " + (r.stage === "ARMED" ? "good" : (r.stage === "SHORTLIST" ? "warn" : "")), r.stage),
+          el("span", "hint", ` · LTP ${ltpS} | PDH ₹${r.pdh.toFixed(2)} | PDL ₹${r.pdl.toFixed(2)} | ATR ₹${r.atr.toFixed(2)}`)
+        );
+        const mLine = el("div", "hint", "Minimum Condition: " + (r.min_condition || "Sector aligned + <= 0.5 ATR + Top-5 + 8/8 checks"));
+        mLine.style.margin = "3px 0 0";
+        const wLine = el("div", null, "Result / Why Not Taken: " + (r.why_not_taken || r.detail || "–"));
+        wLine.style.marginTop = "2px";
+        card.append(top, mLine, wLine);
+        return card;
+      }));
+    };
+    inp.oninput = drawRows; sel.onchange = drawRows; drawRows();
+    if (focusEl) setTimeout(() => focusEl.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+  } catch (e) {
+    $("s3Body").innerHTML = "<p class='hint'>Could not fetch scan report.</p>";
+  }
+}
+
+load();
+setInterval(load, 3000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

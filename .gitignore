@@ -1,0 +1,20 @@
+# Secrets & local runtime config
+.env
+**/.env
+*.env
+!.env.example
+**/config.yaml
+
+# Local runtime DB, logs & Python caches
+**/data/engine.db*
+**/logs/*.log*
+**/__pycache__/
+*.py[cod]
+
+# IDE & chat session history
+.specstory/
+.vscode/
+
+# Root-level duplicate generated exports
+/MACRO_DRYRUN_*
+/*.pdf

@@ -1,0 +1,681 @@
+{
+  "NIFTYIT": {
+    "name": "IT",
+    "holdings": [
+      {
+        "symbol": "TCS",
+        "orig_symbol": "TCS",
+        "name": "TCS",
+        "weight": 28.5
+      },
+      {
+        "symbol": "INFY",
+        "orig_symbol": "INFY",
+        "name": "Infosys",
+        "weight": 25.2
+      },
+      {
+        "symbol": "HCLTECH",
+        "orig_symbol": "HCLTECH",
+        "name": "HCL Tech",
+        "weight": 11.8
+      },
+      {
+        "symbol": "WIPRO",
+        "orig_symbol": "WIPRO",
+        "name": "Wipro",
+        "weight": 7.5
+      },
+      {
+        "symbol": "TECHM",
+        "orig_symbol": "TECHM",
+        "name": "Tech Mahindra",
+        "weight": 6.2
+      },
+      {
+        "symbol": "LTM",
+        "orig_symbol": "LTIM",
+        "name": "LTIMindtree",
+        "weight": 5.8
+      },
+      {
+        "symbol": "PERSISTENT",
+        "orig_symbol": "PERSISTENT",
+        "name": "Persistent Systems",
+        "weight": 3.5
+      },
+      {
+        "symbol": "COFORGE",
+        "orig_symbol": "COFORGE",
+        "name": "Coforge",
+        "weight": 3.2
+      },
+      {
+        "symbol": "MPHASIS",
+        "orig_symbol": "MPHASIS",
+        "name": "Mphasis",
+        "weight": 2.8
+      },
+      {
+        "symbol": "LTTS",
+        "orig_symbol": "LTTS",
+        "name": "L&T Technology",
+        "weight": 2.5
+      }
+    ]
+  },
+  "NIFTYAUTO": {
+    "name": "Auto",
+    "holdings": [
+      {
+        "symbol": "M&M",
+        "orig_symbol": "M&M",
+        "name": "Mahindra & Mahindra",
+        "weight": 18.5
+      },
+      {
+        "symbol": "MARUTI",
+        "orig_symbol": "MARUTI",
+        "name": "Maruti Suzuki",
+        "weight": 15.2
+      },
+      {
+        "symbol": "TMPV",
+        "orig_symbol": "TATAMOTORS",
+        "name": "Tata Motors",
+        "weight": 12.8
+      },
+      {
+        "symbol": "BAJAJ-AUTO",
+        "orig_symbol": "BAJAJ-AUTO",
+        "name": "Bajaj Auto",
+        "weight": 8.5
+      },
+      {
+        "symbol": "HEROMOTOCO",
+        "orig_symbol": "HEROMOTOCO",
+        "name": "Hero MotoCorp",
+        "weight": 6.2
+      },
+      {
+        "symbol": "EICHERMOT",
+        "orig_symbol": "EICHERMOT",
+        "name": "Eicher Motors",
+        "weight": 5.8
+      },
+      {
+        "symbol": "BALKRISIND",
+        "orig_symbol": "BALKRISIND",
+        "name": "Balkrishna Ind",
+        "weight": 3.5
+      },
+      {
+        "symbol": "MOTHERSON",
+        "orig_symbol": "MOTHERSON",
+        "name": "Motherson Sumi",
+        "weight": 3.2
+      },
+      {
+        "symbol": "BHARATFORG",
+        "orig_symbol": "BHARATFORG",
+        "name": "Bharat Forge",
+        "weight": 2.8
+      },
+      {
+        "symbol": "ASHOKLEY",
+        "orig_symbol": "ASHOKLEY",
+        "name": "Ashok Leyland",
+        "weight": 2.5
+      }
+    ]
+  },
+  "NIFTYPHARMA": {
+    "name": "Pharma",
+    "holdings": [
+      {
+        "symbol": "SUNPHARMA",
+        "orig_symbol": "SUNPHARMA",
+        "name": "Sun Pharma",
+        "weight": 25.5
+      },
+      {
+        "symbol": "DRREDDY",
+        "orig_symbol": "DRREDDY",
+        "name": "Dr Reddy's",
+        "weight": 12.8
+      },
+      {
+        "symbol": "CIPLA",
+        "orig_symbol": "CIPLA",
+        "name": "Cipla",
+        "weight": 11.5
+      },
+      {
+        "symbol": "DIVISLAB",
+        "orig_symbol": "DIVISLAB",
+        "name": "Divi's Labs",
+        "weight": 8.2
+      },
+      {
+        "symbol": "APOLLOHOSP",
+        "orig_symbol": "APOLLOHOSP",
+        "name": "Apollo Hospitals",
+        "weight": 7.5
+      },
+      {
+        "symbol": "TORNTPHARM",
+        "orig_symbol": "TORNTPHARM",
+        "name": "Torrent Pharma",
+        "weight": 5.8
+      },
+      {
+        "symbol": "LUPIN",
+        "orig_symbol": "LUPIN",
+        "name": "Lupin",
+        "weight": 5.2
+      },
+      {
+        "symbol": "AUROPHARMA",
+        "orig_symbol": "AUROPHARMA",
+        "name": "Aurobindo Pharma",
+        "weight": 4.5
+      },
+      {
+        "symbol": "BIOCON",
+        "orig_symbol": "BIOCON",
+        "name": "Biocon",
+        "weight": 3.8
+      },
+      {
+        "symbol": "ALKEM",
+        "orig_symbol": "ALKEM",
+        "name": "Alkem Labs",
+        "weight": 3.2
+      }
+    ]
+  },
+  "NIFTYENERGY": {
+    "name": "Energy",
+    "holdings": [
+      {
+        "symbol": "RELIANCE",
+        "orig_symbol": "RELIANCE",
+        "name": "Reliance Industries",
+        "weight": 30.5
+      },
+      {
+        "symbol": "NTPC",
+        "orig_symbol": "NTPC",
+        "name": "NTPC",
+        "weight": 12.8
+      },
+      {
+        "symbol": "POWERGRID",
+        "orig_symbol": "POWERGRID",
+        "name": "Power Grid Corp",
+        "weight": 8.5
+      },
+      {
+        "symbol": "ONGC",
+        "orig_symbol": "ONGC",
+        "name": "ONGC",
+        "weight": 7.2
+      },
+      {
+        "symbol": "ADANIGREEN",
+        "orig_symbol": "ADANIGREEN",
+        "name": "Adani Green Energy",
+        "weight": 6.5
+      },
+      {
+        "symbol": "BPCL",
+        "orig_symbol": "BPCL",
+        "name": "BPCL",
+        "weight": 5.8
+      },
+      {
+        "symbol": "IOC",
+        "orig_symbol": "IOC",
+        "name": "Indian Oil Corp",
+        "weight": 4.5
+      },
+      {
+        "symbol": "TATAPOWER",
+        "orig_symbol": "TATAPOWER",
+        "name": "Tata Power",
+        "weight": 4.2
+      },
+      {
+        "symbol": "GAIL",
+        "orig_symbol": "GAIL",
+        "name": "GAIL India",
+        "weight": 3.2
+      }
+    ]
+  },
+  "NIFTYMETAL": {
+    "name": "Metal",
+    "holdings": [
+      {
+        "symbol": "TATASTEEL",
+        "orig_symbol": "TATASTEEL",
+        "name": "Tata Steel",
+        "weight": 18.5
+      },
+      {
+        "symbol": "JSWSTEEL",
+        "orig_symbol": "JSWSTEEL",
+        "name": "JSW Steel",
+        "weight": 15.2
+      },
+      {
+        "symbol": "HINDALCO",
+        "orig_symbol": "HINDALCO",
+        "name": "Hindalco",
+        "weight": 14.8
+      },
+      {
+        "symbol": "ADANIENT",
+        "orig_symbol": "ADANIENT",
+        "name": "Adani Enterprises",
+        "weight": 10.5
+      },
+      {
+        "symbol": "COALINDIA",
+        "orig_symbol": "COALINDIA",
+        "name": "Coal India",
+        "weight": 8.2
+      },
+      {
+        "symbol": "VEDL",
+        "orig_symbol": "VEDL",
+        "name": "Vedanta",
+        "weight": 7.5
+      },
+      {
+        "symbol": "NMDC",
+        "orig_symbol": "NMDC",
+        "name": "NMDC",
+        "weight": 5.8
+      },
+      {
+        "symbol": "SAIL",
+        "orig_symbol": "SAIL",
+        "name": "SAIL",
+        "weight": 4.5
+      },
+      {
+        "symbol": "NATIONALUM",
+        "orig_symbol": "NATIONALUM",
+        "name": "National Aluminium",
+        "weight": 3.8
+      },
+      {
+        "symbol": "JINDALSTEL",
+        "orig_symbol": "JINDALSTEL",
+        "name": "Jindal Steel",
+        "weight": 3.2
+      }
+    ]
+  },
+  "NIFTYFMCG": {
+    "name": "FMCG",
+    "holdings": [
+      {
+        "symbol": "HINDUNILVR",
+        "orig_symbol": "HINDUNILVR",
+        "name": "Hindustan Unilever",
+        "weight": 22.5
+      },
+      {
+        "symbol": "ITC",
+        "orig_symbol": "ITC",
+        "name": "ITC",
+        "weight": 18.8
+      },
+      {
+        "symbol": "NESTLEIND",
+        "orig_symbol": "NESTLEIND",
+        "name": "Nestle India",
+        "weight": 8.5
+      },
+      {
+        "symbol": "BRITANNIA",
+        "orig_symbol": "BRITANNIA",
+        "name": "Britannia",
+        "weight": 6.2
+      },
+      {
+        "symbol": "GODREJCP",
+        "orig_symbol": "GODREJCP",
+        "name": "Godrej Consumer",
+        "weight": 5.5
+      },
+      {
+        "symbol": "DABUR",
+        "orig_symbol": "DABUR",
+        "name": "Dabur India",
+        "weight": 5.2
+      },
+      {
+        "symbol": "MARICO",
+        "orig_symbol": "MARICO",
+        "name": "Marico",
+        "weight": 4.8
+      },
+      {
+        "symbol": "COLPAL",
+        "orig_symbol": "COLPAL",
+        "name": "Colgate-Palmolive",
+        "weight": 4.5
+      },
+      {
+        "symbol": "TATACONSUM",
+        "orig_symbol": "TATACONSUM",
+        "name": "Tata Consumer",
+        "weight": 4.2
+      },
+      {
+        "symbol": "UBL",
+        "orig_symbol": "UBL",
+        "name": "United Breweries",
+        "weight": 3.5
+      }
+    ]
+  },
+  "NIFTYREALTY": {
+    "name": "Realty",
+    "holdings": [
+      {
+        "symbol": "DLF",
+        "orig_symbol": "DLF",
+        "name": "DLF",
+        "weight": 22.5
+      },
+      {
+        "symbol": "GODREJPROP",
+        "orig_symbol": "GODREJPROP",
+        "name": "Godrej Properties",
+        "weight": 15.2
+      },
+      {
+        "symbol": "OBEROIRLTY",
+        "orig_symbol": "OBEROIRLTY",
+        "name": "Oberoi Realty",
+        "weight": 12.8
+      },
+      {
+        "symbol": "PRESTIGE",
+        "orig_symbol": "PRESTIGE",
+        "name": "Prestige Estates",
+        "weight": 10.5
+      },
+      {
+        "symbol": "PHOENIXLTD",
+        "orig_symbol": "PHOENIXLTD",
+        "name": "Phoenix Mills",
+        "weight": 8.5
+      },
+      {
+        "symbol": "BRIGADE",
+        "orig_symbol": "BRIGADE",
+        "name": "Brigade Enterprises",
+        "weight": 6.2
+      },
+      {
+        "symbol": "LODHA",
+        "orig_symbol": "LODHA",
+        "name": "Macrotech Developers",
+        "weight": 5.8
+      },
+      {
+        "symbol": "SOBHA",
+        "orig_symbol": "SOBHA",
+        "name": "Sobha",
+        "weight": 4.5
+      },
+      {
+        "symbol": "SUNTECK",
+        "orig_symbol": "SUNTECK",
+        "name": "Sunteck Realty",
+        "weight": 3.8
+      },
+      {
+        "symbol": "IBREALEST",
+        "orig_symbol": "IBREALEST",
+        "name": "Indiabulls Real Est",
+        "weight": 3.2
+      }
+    ]
+  },
+  "NIFTYPVTBANK": {
+    "name": "Pvt Bank",
+    "holdings": [
+      {
+        "symbol": "HDFCBANK",
+        "orig_symbol": "HDFCBANK",
+        "name": "HDFC Bank",
+        "weight": 28.5
+      },
+      {
+        "symbol": "ICICIBANK",
+        "orig_symbol": "ICICIBANK",
+        "name": "ICICI Bank",
+        "weight": 22.5
+      },
+      {
+        "symbol": "KOTAKBANK",
+        "orig_symbol": "KOTAKBANK",
+        "name": "Kotak Mahindra Bank",
+        "weight": 12.8
+      },
+      {
+        "symbol": "AXISBANK",
+        "orig_symbol": "AXISBANK",
+        "name": "Axis Bank",
+        "weight": 10.5
+      },
+      {
+        "symbol": "INDUSINDBK",
+        "orig_symbol": "INDUSINDBK",
+        "name": "IndusInd Bank",
+        "weight": 5.8
+      },
+      {
+        "symbol": "BANDHANBNK",
+        "orig_symbol": "BANDHANBNK",
+        "name": "Bandhan Bank",
+        "weight": 3.5
+      },
+      {
+        "symbol": "FEDERALBNK",
+        "orig_symbol": "FEDERALBNK",
+        "name": "Federal Bank",
+        "weight": 3.2
+      },
+      {
+        "symbol": "IDFCFIRSTB",
+        "orig_symbol": "IDFCFIRSTB",
+        "name": "IDFC First Bank",
+        "weight": 2.8
+      },
+      {
+        "symbol": "RBLBANK",
+        "orig_symbol": "RBLBANK",
+        "name": "RBL Bank",
+        "weight": 2.5
+      },
+      {
+        "symbol": "AUBANK",
+        "orig_symbol": "AUBANK",
+        "name": "AU Small Finance Bank",
+        "weight": 2.2
+      }
+    ]
+  },
+  "NIFTYPSUBANK": {
+    "name": "PSU Bank",
+    "holdings": [
+      {
+        "symbol": "SBIN",
+        "orig_symbol": "SBIN",
+        "name": "SBI",
+        "weight": 30.5
+      },
+      {
+        "symbol": "BANKBARODA",
+        "orig_symbol": "BANKBARODA",
+        "name": "Bank of Baroda",
+        "weight": 12.8
+      },
+      {
+        "symbol": "PNB",
+        "orig_symbol": "PNB",
+        "name": "Punjab National Bank",
+        "weight": 10.5
+      },
+      {
+        "symbol": "CANBK",
+        "orig_symbol": "CANBK",
+        "name": "Canara Bank",
+        "weight": 9.2
+      },
+      {
+        "symbol": "UNIONBANK",
+        "orig_symbol": "UNIONBANK",
+        "name": "Union Bank",
+        "weight": 7.5
+      },
+      {
+        "symbol": "IOB",
+        "orig_symbol": "IOB",
+        "name": "Indian Overseas Bank",
+        "weight": 5.8
+      },
+      {
+        "symbol": "INDIANB",
+        "orig_symbol": "INDIANB",
+        "name": "Indian Bank",
+        "weight": 5.2
+      },
+      {
+        "symbol": "BANKINDIA",
+        "orig_symbol": "BANKINDIA",
+        "name": "Bank of India",
+        "weight": 4.8
+      },
+      {
+        "symbol": "MAHABANK",
+        "orig_symbol": "MAHABANK",
+        "name": "Bank of Maharashtra",
+        "weight": 3.5
+      },
+      {
+        "symbol": "CENTRALBK",
+        "orig_symbol": "CENTRALBK",
+        "name": "Central Bank",
+        "weight": 3.2
+      }
+    ]
+  },
+  "NIFTYMEDIA": {
+    "name": "Media",
+    "holdings": [
+      {
+        "symbol": "ZEEL",
+        "orig_symbol": "ZEEL",
+        "name": "Zee Entertainment",
+        "weight": 22.5
+      },
+      {
+        "symbol": "PVRINOX",
+        "orig_symbol": "PVR",
+        "name": "PVR INOX",
+        "weight": 18.5
+      },
+      {
+        "symbol": "SUNTV",
+        "orig_symbol": "SUNTV",
+        "name": "Sun TV Network",
+        "weight": 15.2
+      },
+      {
+        "symbol": "NETWORK18",
+        "orig_symbol": "NETWORK18",
+        "name": "Network18",
+        "weight": 10.5
+      },
+      {
+        "symbol": "TV18BRDCST",
+        "orig_symbol": "TV18BRDCST",
+        "name": "TV18 Broadcast",
+        "weight": 8.5
+      },
+      {
+        "symbol": "NAVNETEDUL",
+        "orig_symbol": "NAVNETEDUL",
+        "name": "Navneet Education",
+        "weight": 6.2
+      },
+      {
+        "symbol": "DBCORP",
+        "orig_symbol": "DBCORP",
+        "name": "DB Corp",
+        "weight": 5.8
+      },
+      {
+        "symbol": "JAGRAN",
+        "orig_symbol": "JAGRAN",
+        "name": "Jagran Prakashan",
+        "weight": 4.5
+      },
+      {
+        "symbol": "NDTV",
+        "orig_symbol": "NDTV",
+        "name": "NDTV",
+        "weight": 4.2
+      },
+      {
+        "symbol": "SAREGAMA",
+        "orig_symbol": "SAREGAMA",
+        "name": "Saregama India",
+        "weight": 4.1
+      }
+    ]
+  },
+  "NIFTYINFRA": {
+    "name": "Infra",
+    "holdings": [
+      {
+        "symbol": "LT",
+        "orig_symbol": "LT",
+        "name": "Larsen & Toubro",
+        "weight": 22.5
+      },
+      {
+        "symbol": "ADANIPORTS",
+        "orig_symbol": "ADANIPORTS",
+        "name": "Adani Ports",
+        "weight": 6.5
+      },
+      {
+        "symbol": "ULTRACEMCO",
+        "orig_symbol": "ULTRACEMCO",
+        "name": "UltraTech Cement",
+        "weight": 5.8
+      },
+      {
+        "symbol": "GRASIM",
+        "orig_symbol": "GRASIM",
+        "name": "Grasim Industries",
+        "weight": 5.2
+      },
+      {
+        "symbol": "BHARTIARTL",
+        "orig_symbol": "BHARTIARTL",
+        "name": "Bharti Airtel",
+        "weight": 4.5
+      }
+    ]
+  }
+}

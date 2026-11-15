@@ -1,0 +1,118 @@
+# intraday-engine settings. Copy to config.yaml (the engine does this by itself on first run).
+# Secrets (API key, OpenAlgo address) are in .env, not here.
+
+strategy:
+  name: pdh_breakout                 # used as the OpenAlgo strategy tag
+  file: strategies/pdh_breakout.py   # built in Phase 3
+  params:                            # spec section 7 & 12
+    vwap_filter: true
+    buffer_pct: 0.001
+    vol_mult: 1.5
+    vol_baseline_sessions: 5
+    rvol_min: 1.0
+    max_chase_atr: 0.5
+    stop_bar_buffer_pct: 0.0005
+    min_stop_pct: 0.006
+    max_stop_pct: 0.015
+    target_r: 2.0
+    breakeven_at_r: 1.0
+
+universe:
+  file: data/sector_map.json         # read-only source; never edited
+  clean_file: data/universe_clean.json
+  exchange: NSE
+  index_symbol: NIFTY
+  index_exchange: NSE_INDEX
+  drop_sectors:
+    - NIFTYCOMMODITIES               # spec section 3: no unique members
+  symbol_aliases:                    # renamed NSE symbols
+    TATAMOTORS: TMPV
+    LTIM: LTM
+    PVR: PVRINOX
+
+capital: 50000                       # paper capital in rupees; check 5 compares sandbox funds with this
+
+session:                             # IST, 24-hour clock (spec section 1 & 12)
+  market_open: "09:15"
+  no_entry_before: "09:30"
+  no_new_entries_after: "14:15"
+  square_off: "14:55"
+  market_close: "15:30"              # used only to decide whether the price stream should be ticking
+  auto_start_time: "08:45"           # default only; the time set in the UI is remembered and wins
+  rescan_minutes: 5
+  bars_per_day: 72
+
+prefilter:                           # spec section 3 & 12
+  min_price: 100
+  max_price: 5000
+  min_traded_value_cr: 50
+  min_atr_pct: 1.2
+  fno_only: false                    # cash equity intraday only (F&O filter off)
+  min_members_per_sector: 5
+  atr_period: 14
+  avg_days: 20
+
+regime:                              # spec section 4 & 12
+  adx_period: 14
+  adx_below: 20
+  crosses_min: 4
+  crosses_lookback: 12
+  breadth_low: 0.8
+  breadth_high: 1.25
+  confirm_bars: 2
+  warmup_days: 7                     # calendar days fetched to warm up >= 3 prior sessions
+
+sector:                              # spec section 5 & 12
+  rs_threshold_pct: 0.25
+  top_n: 3
+
+scanner:                             # spec section 6 & 12
+  proximity_max_atr: 0.5
+  shortlist_size: 5
+  arm_buffer_pct: 0.001
+
+feed:
+  stale_seconds: 5                   # stream silent for this long -> warn + polling fallback
+  poll_interval_seconds: 15
+
+dryrun:
+  enabled: true
+
+risk:                                # spec section 1, 8, 9 (Phase 4)
+  product: MIS
+  risk_per_trade_rs: 500
+  leverage: 5.0
+  min_achievable_risk_rs: 300
+  max_open_positions: 3
+  max_positions_per_sector: 2
+  max_trades_per_day: 6
+  daily_loss_limit_rs: 1500
+  gst_rate: 0.18
+  reconcile_interval_seconds: 30
+  square_off_confirm_time: "15:00"
+
+openalgo:
+  timeout_seconds: 10                # every call
+  max_calls_per_second: 2
+  heartbeat_seconds: 30              # Analyze-mode check while the engine runs
+  retry_when_down_seconds: 10        # how often to retry while OpenAlgo is unreachable
+
+check:
+  stock_symbol: RELIANCE             # the "one stock" used by checks 6, 7 and 8
+  funds_tolerance_pct: 10            # check 5: sandbox funds within this % of capital
+  stream_wait_seconds: 10            # check 8: a tick must arrive within this time
+
+memory:
+  warn_free_mb: 200                  # amber banner below this
+  block_free_mb: 100                 # no new entries below this
+  engine_target_mb: 150
+
+ui:
+  port: 8800
+  open_browser: true
+  lan_access: false                  # true = reachable from the phone on the same Wi-Fi
+  access_code: ""                    # required when lan_access is true
+
+store:
+  db_file: data/engine.db
+  keep_activity_days: 30
