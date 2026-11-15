@@ -7,11 +7,14 @@ Generates/updates at the repository root:
 """
 from __future__ import annotations
 
+import argparse
 import ast
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from zoneinfo import ZoneInfo
 
@@ -395,7 +398,164 @@ def _render_health_report(files: list[FileStats], info: dict, now_str: str) -> s
     return "\n".join(lines)
 
 
+def _build_issue_candidates(files: list[FileStats], info: dict) -> list[dict[str, str]]:
+    """Build deterministic, deduplicatable GitHub Issue payloads with AI prompts."""
+    issues: list[dict[str, str]] = []
+
+    if info["syntax_errors"]:
+        err_lines = "\n".join(f"- `{f.rel_path}`: {f.syntax_error}" for f in info["syntax_errors"])
+        issues.append({
+            "title": "[Health] Fix Python syntax errors detected by daily check",
+            "label": "bug",
+            "body": (
+                "## Problem\nThe daily health check detected Python syntax error(s):\n"
+                f"{err_lines}\n\n"
+                "## Copy-Paste Prompt for AI\n```text\n"
+                "Fix the syntax errors reported in CODE_HEALTH_REPORT.md without changing trading logic, "
+                "then re-run `python scripts/daily_health_check.py` to confirm 0 syntax errors.\n```"
+            ),
+        })
+
+    if info["safety_violations"]:
+        viol_lines = "\n".join(
+            f"- `{f.rel_path}`: {', '.join(f.safety_hits)}" for f in info["safety_violations"]
+        )
+        issues.append({
+            "title": "[Health] Resolve BUILD.md safety rule violations",
+            "label": "bug",
+            "body": (
+                "## Problem\nSafety rule violation(s) found:\n"
+                f"{viol_lines}\n\n"
+                "## Copy-Paste Prompt for AI\n```text\n"
+                "Inspect the safety violations listed in CODE_HEALTH_REPORT.md and restore compliance with "
+                "BUILD.md Rules 1 & 5 (paper-only Analyze mode; all OpenAlgo API calls routed through engine/oa.py).\n```"
+            ),
+        })
+
+    for imp, pip_name, paths in info["missing_reqs"]:
+        short_paths = ", ".join(p.replace("intraday-engine/intraday-engine/", "") for p in paths)
+        issues.append({
+            "title": f"[Health] Add missing dependency {pip_name} to requirements.txt",
+            "label": "bug",
+            "body": (
+                f"## Problem\n`{imp}` (package `{pip_name}`) is imported in `{short_paths}` "
+                "but is not declared in `intraday-engine/intraday-engine/requirements.txt`.\n\n"
+                "## Copy-Paste Prompt for AI\n```text\n"
+                f"In intraday-engine/intraday-engine/requirements.txt, add {pip_name} (imported by {short_paths}) "
+                "and confirm `python scripts/daily_health_check.py` reports 0 missing requirements.\n```"
+            ),
+        })
+
+    known_group_titles = {
+        "engine/dryrun.py": (
+            "[Health] Modularize engine/dryrun.py (run_dry_session is 593 lines)",
+            "Refactor `run_dry_session` in `intraday-engine/intraday-engine/engine/dryrun.py` into small single-purpose helpers "
+            "(bar preparation, armed evaluation, simulated exits, and archive/report output) while keeping dry-run results identical.",
+        ),
+        "engine/macro_report.py": (
+            "[Health] Split engine/macro_report.py and engine/session.py monoliths",
+            "Split `intraday-engine/intraday-engine/engine/macro_report.py` into data compilation vs Markdown/PDF rendering modules, "
+            "and split `Controller._build` and `_evaluate_armed_live` in `engine/session.py` into focused helpers with identical behavior.",
+        ),
+        "engine/page.html": (
+            "[Health] Split engine/page.html, s3_archive.py, and socket_manager.py",
+            "Modularize `intraday-engine/intraday-engine/engine/page.html` (CSS/JS extraction with zero build step), "
+            "`engine/s3_archive.py`, and `engine/socket_manager.py` into smaller single-purpose modules/helpers.",
+        ),
+    }
+
+    handled_critical = {"engine/dryrun.py", "engine/macro_report.py", "engine/session.py",
+                        "engine/page.html", "engine/s3_archive.py", "engine/socket_manager.py"}
+
+    for short, (title, prompt) in known_group_titles.items():
+        if any(f.rel_path.endswith(short) for f in info["bloated_files"]):
+            issues.append({
+                "title": title,
+                "label": "enhancement",
+                "body": (
+                    f"## Problem\nMonolithic module complexity detected in `{short}` (see `CODE_HEALTH_REPORT.md`).\n\n"
+                    f"## Copy-Paste Prompt for AI\n```text\n{prompt}\n```"
+                ),
+            })
+
+    for f in info["bloated_files"]:
+        short = f.rel_path.replace("intraday-engine/intraday-engine/", "")
+        if f.lines > CRITICAL_FILE_LINES and short not in handled_critical:
+            issues.append({
+                "title": f"[Health] Refactor oversized module {short} ({f.lines} lines)",
+                "label": "enhancement",
+                "body": (
+                    f"## Problem\n`{short}` has grown to {f.lines} lines (threshold: {CRITICAL_FILE_LINES}).\n\n"
+                    "## Copy-Paste Prompt for AI\n```text\n"
+                    f"Refactor {f.rel_path} into smaller single-purpose helpers/modules without altering trading or UI behavior.\n```"
+                ),
+            })
+
+    return issues
+
+
+def _run_cmd(args: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        args,
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+def _sync_github(files: list[FileStats], info: dict) -> None:
+    if not (REPO_ROOT / ".git").exists():
+        print("Git sync skipped: .git not initialized.")
+        return
+
+    branch = _run_cmd(["git", "rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip()
+    if branch != "main":
+        print(f"Git sync skipped: current branch is '{branch}', expected 'main'.")
+        return
+
+    _run_cmd(["git", "add", "CODEBASE_INDEX.md", "CODE_HEALTH_REPORT.md"])
+    diff_check = _run_cmd(["git", "diff", "--cached", "--quiet"])
+    if diff_check.returncode == 1:
+        commit_res = _run_cmd(["git", "commit", "-m", "chore: update codebase index and daily health report"])
+        if commit_res.returncode == 0:
+            push_res = _run_cmd(["git", "push", "origin", "main"])
+            print("Git push main:", "OK" if push_res.returncode == 0 else push_res.stderr.strip())
+        else:
+            print("Git commit failed:", commit_res.stderr.strip())
+    else:
+        print("Git main: index and report already up to date.")
+
+    list_res = _run_cmd(["gh", "issue", "list", "--state", "open", "--limit", "100", "--json", "number,title"])
+    if list_res.returncode != 0:
+        print("GitHub issue sync skipped:", list_res.stderr.strip())
+        return
+
+    existing_titles = {item["title"].strip().lower() for item in json.loads(list_res.stdout or "[]")}
+    created = 0
+    for issue in _build_issue_candidates(files, info):
+        if issue["title"].strip().lower() in existing_titles:
+            continue
+        res = _run_cmd([
+            "gh", "issue", "create",
+            "--title", issue["title"],
+            "--body", issue["body"],
+            "--label", issue["label"],
+        ])
+        if res.returncode == 0:
+            created += 1
+            print("Created issue:", res.stdout.strip())
+        else:
+            print("Failed to create issue:", issue["title"], res.stderr.strip())
+    print(f"GitHub issue sync complete: {created} new issue(s) opened, {len(existing_titles)} already open.")
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Daily Codebase Health Check & Index Generator")
+    parser.add_argument("--sync-github", action="store_true", help="Commit/push index & report on main and sync GitHub issues")
+    args = parser.parse_args()
+
     now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M IST")
     files = _collect_all_files()
     reqs = _read_requirements()
@@ -415,6 +575,10 @@ def main() -> int:
         f"{len(hygiene['long_functions'])} long functions | "
         f"{len(hygiene['missing_reqs'])} missing requirements"
     )
+
+    if args.sync_github:
+        _sync_github(files, hygiene)
+
     return 1 if hygiene["syntax_errors"] or hygiene["safety_violations"] else 0
 
 
