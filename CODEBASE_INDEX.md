@@ -1,6 +1,6 @@
 # Codebase Index — `sunil_backtesting`
 
-> Auto-generated on **2026-11-15 09:47 IST** by `scripts/daily_health_check.py`. Do not hand-edit.
+> Auto-generated on **2026-11-15 09:48 IST** by `scripts/daily_health_check.py`. Do not hand-edit.
 
 ## 1. Project Entry Points & Layout
 
@@ -80,7 +80,7 @@
 
 | File | Lines | Classes | Functions | Purpose |
 |---|---:|---|---|---|
-| `scripts/daily_health_check.py` | 422 | FuncInfo, FileStats | 11 | Daily Codebase Health Check & Index Generator for sunil_backtesting. |
+| `scripts/daily_health_check.py` | 586 | FuncInfo, FileStats | 14 | Daily Codebase Health Check & Index Generator for sunil_backtesting. |
 
 ## 8. Key Data & Config Files
 
